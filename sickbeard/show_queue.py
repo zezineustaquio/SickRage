@@ -25,7 +25,7 @@ import sickbeard
 from lib.imdb import _exceptions as imdb_exceptions
 from sickbeard.common import SKIPPED, WANTED
 from sickbeard.tv import TVShow
-from sickbeard import exceptions, logger, ui, db
+from sickbeard import exceptions, logger, ui, db, notifiers
 from sickbeard import generic_queue
 from sickbeard import name_cache
 from sickbeard.exceptions import ex
@@ -294,8 +294,8 @@ class QueueItemAdd(ShowQueueItem):
             self.show.paused = self.paused if self.paused != None else False
 
             # set up default new/missing episode status
-            self.show.default_ep_status = self.default_status
             logger.log(u"Setting all episodes to the specified default status: " + str(self.show.default_ep_status))
+            self.show.default_ep_status = self.default_status
 
             # be smartish about this
             if self.show.genre and "talk show" in self.show.genre.lower():
@@ -320,7 +320,7 @@ class QueueItemAdd(ShowQueueItem):
             return
 
         except exceptions.MultipleShowObjectsException:
-            logger.log(u"The show in " + self.showDir + " is already in your show list, skipping", logger.ERROR)
+            logger.log(u"The show in " + self.showDir + " is already in your show list, skipping", logger.WARNING)
             ui.notifications.error('Show skipped', "The show in " + self.showDir + " is already in your show list")
             self._finishEarly()
             return
@@ -335,7 +335,6 @@ class QueueItemAdd(ShowQueueItem):
         try:
             self.show.loadIMDbInfo()
         except imdb_exceptions.IMDbError, e:
-            #todo Insert UI notification
             logger.log(u" Something wrong on IMDb api: " + ex(e), logger.WARNING)
         except Exception, e:
             logger.log(u"Error loading IMDb info: " + ex(e), logger.ERROR)
@@ -386,6 +385,10 @@ class QueueItemAdd(ShowQueueItem):
             # add show to trakt.tv library
             if sickbeard.TRAKT_SYNC:
                 sickbeard.traktCheckerScheduler.action.addShowToTraktLibrary(self.show)
+
+            if sickbeard.TRAKT_SYNC_WATCHLIST:
+                logger.log(u"update watchlist")
+                notifiers.trakt_notifier.update_watchlist(self.show)
 
         # Load XEM data to DB for show
         sickbeard.scene_numbering.xem_refresh(self.show.indexerid, self.show.indexer, force=True)
@@ -520,7 +523,7 @@ class QueueItemUpdate(ShowQueueItem):
         try:
             self.show.saveToDB()
         except Exception, e:
-            logger.log(u"Error saving the episode to the database: " + ex(e), logger.ERROR)
+            logger.log(u"Error saving show info to the database: " + ex(e), logger.ERROR)
             logger.log(traceback.format_exc(), logger.DEBUG)
 
         # get episode list from DB
@@ -537,7 +540,7 @@ class QueueItemUpdate(ShowQueueItem):
             IndexerEpList = None
 
         foundMissingEps = False
-        if IndexerEpList == None:
+        if IndexerEpList is None:
             logger.log(u"No data returned from " + sickbeard.indexerApi(
                 self.show.indexer).name + ", unable to update this show", logger.ERROR)
         else:
@@ -556,7 +559,7 @@ class QueueItemUpdate(ShowQueueItem):
             for curSeason in DBEpList:
                 for curEpisode in DBEpList[curSeason]:
                     logger.log(u"Permanently deleting episode " + str(curSeason) + "x" + str(
-                        curEpisode) + " from the database", logger.MESSAGE)
+                        curEpisode) + " from the database", logger.INFO)
                     curEp = self.show.getEpisode(curSeason, curEpisode)
                     try:
                         curEp.deleteEpisode()

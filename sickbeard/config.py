@@ -89,7 +89,7 @@ def change_LOG_DIR(log_dir, web_log):
             sickbeard.ACTUAL_LOG_DIR = os.path.normpath(log_dir)
             sickbeard.LOG_DIR = abs_log_dir
 
-            logger.sb_log_instance.initLogging()
+            logger.initLogging()
             logger.log(u"Initialized new log file in " + sickbeard.LOG_DIR)
             log_dir_changed = True
 
@@ -326,10 +326,8 @@ def clean_url(url):
 
         scheme, netloc, path, query, fragment = urlparse.urlsplit(url, 'http')
 
-        if not path.endswith('/'):
-            basename, ext = ek.ek(os.path.splitext, ek.ek(os.path.basename, path))  # @UnusedVariable
-            if not ext:
-                path = path + '/'
+        if not path:
+            path = path + '/'
 
         cleaned_url = urlparse.urlunsplit((scheme, netloc, path, query, fragment))
 
@@ -369,9 +367,11 @@ def minimax(val, default, low, high):
 ################################################################################
 # Check_setting_int                                                            #
 ################################################################################
-def check_setting_int(config, cfg_name, item_name, def_val):
+def check_setting_int(config, cfg_name, item_name, def_val, silent=True):
     try:
         my_val = int(config[cfg_name][item_name])
+        if str(my_val) == str(None):
+            raise
     except:
         my_val = def_val
         try:
@@ -379,16 +379,21 @@ def check_setting_int(config, cfg_name, item_name, def_val):
         except:
             config[cfg_name] = {}
             config[cfg_name][item_name] = my_val
-    logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
+
+    if not silent:
+        logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
+
     return my_val
 
 
 ################################################################################
 # Check_setting_float                                                          #
 ################################################################################
-def check_setting_float(config, cfg_name, item_name, def_val):
+def check_setting_float(config, cfg_name, item_name, def_val, silent=True):
     try:
         my_val = float(config[cfg_name][item_name])
+        if str(my_val) == str(None):
+            raise
     except:
         my_val = def_val
         try:
@@ -397,14 +402,16 @@ def check_setting_float(config, cfg_name, item_name, def_val):
             config[cfg_name] = {}
             config[cfg_name][item_name] = my_val
 
-    logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
+    if not silent:
+        logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
+
     return my_val
 
 
 ################################################################################
 # Check_setting_str                                                            #
 ################################################################################
-def check_setting_str(config, cfg_name, item_name, def_val, log=True):
+def check_setting_str(config, cfg_name, item_name, def_val, silent=True, censor_log=False):
     # For passwords you must include the word `password` in the item_name and add `helpers.encrypt(ITEM_NAME, ENCRYPTION_VERSION)` in save_config()
     if bool(item_name.find('password') + 1):
         log = False
@@ -414,6 +421,8 @@ def check_setting_str(config, cfg_name, item_name, def_val, log=True):
 
     try:
         my_val = helpers.decrypt(config[cfg_name][item_name], encryption_version)
+        if str(my_val) == str(None):
+            raise
     except:
         my_val = def_val
         try:
@@ -422,10 +431,11 @@ def check_setting_str(config, cfg_name, item_name, def_val, log=True):
             config[cfg_name] = {}
             config[cfg_name][item_name] = helpers.encrypt(my_val, encryption_version)
 
-    if log:
+    if censor_log or (cfg_name, item_name) in logger.censoredItems.items():
+        logger.censoredItems[cfg_name, item_name] = my_val
+
+    if not silent:
         logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
-    else:
-        logger.log(item_name + " -> ******", logger.DEBUG)
 
     return my_val
 
@@ -445,7 +455,8 @@ class ConfigMigrator():
                                 2: 'Sync backup number with version number',
                                 3: 'Rename omgwtfnzb variables',
                                 4: 'Add newznab catIDs',
-                                5: 'Metadata update'
+                                5: 'Metadata update',
+                                6: 'Convert from XBMC to new KODI variables'
         }
 
     def migrate_config(self):
@@ -712,3 +723,20 @@ class ConfigMigrator():
         sickbeard.METADATA_WDTV = _migrate_metadata(metadata_wdtv, 'WDTV', use_banner)
         sickbeard.METADATA_TIVO = _migrate_metadata(metadata_tivo, 'TIVO', use_banner)
         sickbeard.METADATA_MEDE8ER = _migrate_metadata(metadata_mede8er, 'Mede8er', use_banner)
+
+    # Migration v6: Convert from XBMC to KODI variables
+    def _migrate_v6(self):
+        sickbeard.USE_KODI = bool(check_setting_int(self.config_obj, 'XBMC', 'use_xbmc', 0))
+        sickbeard.KODI_ALWAYS_ON = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_always_on', 1))
+        sickbeard.KODI_NOTIFY_ONSNATCH = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_notify_onsnatch', 0))
+        sickbeard.KODI_NOTIFY_ONDOWNLOAD = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_notify_ondownload', 0))
+        sickbeard.KODI_NOTIFY_ONSUBTITLEDOWNLOAD = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_notify_onsubtitledownload', 0))
+        sickbeard.KODI_UPDATE_LIBRARY = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_update_library', 0))
+        sickbeard.KODI_UPDATE_FULL = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_update_full', 0))
+        sickbeard.KODI_UPDATE_ONLYFIRST = bool(check_setting_int(self.config_obj, 'XBMC', 'xbmc_update_onlyfirst', 0))
+        sickbeard.KODI_HOST = check_setting_str(self.config_obj, 'XBMC', 'xbmc_host', '')
+        sickbeard.KODI_USERNAME = check_setting_str(self.config_obj, 'XBMC', 'xbmc_username', '', censor_log=True)
+        sickbeard.KODI_PASSWORD = check_setting_str(self.config_obj, 'XBMC', 'xbmc_password', '', censor_log=True)
+        sickbeard.METADATA_KODI = check_setting_str(self.config_obj, 'General', 'metadata_xbmc', '0|0|0|0|0|0|0|0|0|0')
+        sickbeard.METADATA_KODI_12PLUS = check_setting_str(self.config_obj, 'General', 'metadata_xbmc_12plus', '0|0|0|0|0|0|0|0|0|0')
+

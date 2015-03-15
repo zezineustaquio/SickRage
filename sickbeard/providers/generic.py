@@ -23,6 +23,8 @@ import datetime
 import os
 import re
 import itertools
+import urllib
+
 import sickbeard
 import requests
 
@@ -33,7 +35,6 @@ from sickbeard import encodingKludge as ek
 from sickbeard.exceptions import ex
 from sickbeard.name_parser.parser import NameParser, InvalidNameException, InvalidShowException
 from sickbeard.common import Quality
-from sickbeard import clients
 
 from hachoir_parser import createParser
 from base64 import b16encode, b32decode
@@ -46,6 +47,9 @@ class GenericProvider:
         # these need to be set in the subclass
         self.providerType = None
         self.name = name
+
+        self.proxy = ProviderProxy()
+        self.urls = {}
         self.url = ''
 
         self.show = None
@@ -63,11 +67,7 @@ class GenericProvider:
 
         self.session = requests.session()
 
-        self.headers = {
-            # Using USER_AGENT instead of Mozilla to keep same user agent along authentication and download phases,
-            #otherwise session might be broken and download fail, asking again for authentication
-            #'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36'}
-            'User-Agent': USER_AGENT}
+        self.headers = {'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT}
 
     def getID(self):
         return GenericProvider.makeID(self.name)
@@ -125,7 +125,10 @@ class GenericProvider:
         if not self._doLogin():
             return
 
-        return helpers.getURL(url, post_data=post_data, params=params, headers=self.headers, timeout=timeout,
+        if self.proxy.isEnabled():
+            self.headers.update({'Referer': self.proxy.getProxyURL()})
+
+        return helpers.getURL(self.proxy._buildURL(url), post_data=post_data, params=params, headers=self.headers, timeout=timeout,
                               session=self.session, json=json)
 
     def downloadResult(self, result):
@@ -171,14 +174,14 @@ class GenericProvider:
                 logger.log(u"Downloading a result from " + self.name + " at " + url)
 
                 if self.providerType == GenericProvider.TORRENT:
-                    logger.log(u"Saved magnet link to " + filename, logger.MESSAGE)
+                    logger.log(u"Saved magnet link to " + filename, logger.INFO)
                 else:
-                    logger.log(u"Saved result to " + filename, logger.MESSAGE)
+                    logger.log(u"Saved result to " + filename, logger.INFO)
 
                 if self._verify_download(filename):
                     return True
 
-        logger.log(u"Failed to download result", logger.ERROR)
+        logger.log(u"Failed to download result", logger.WARNING)
         return False
 
     def _verify_download(self, file_name=None):
@@ -188,15 +191,18 @@ class GenericProvider:
 
         # primitive verification of torrents, just make sure we didn't get a text file or something
         if self.providerType == GenericProvider.TORRENT:
-            parser = createParser(file_name)
-            if parser:
-                mime_type = parser._getMimeType()
-                try:
-                    parser.stream._input.close()
-                except:
-                    pass
-                if mime_type == 'application/x-bittorrent':
-                    return True
+            try:
+                parser = createParser(file_name)
+                if parser:
+                    mime_type = parser._getMimeType()
+                    try:
+                        parser.stream._input.close()
+                    except:
+                        pass
+                    if mime_type == 'application/x-bittorrent':
+                        return True
+            except Exception as e:
+                logger.log(u"Failed to validate torrent file: " + ex(e), logger.DEBUG)
 
             logger.log(u"Result is not a valid torrent file", logger.WARNING)
             return False
@@ -214,7 +220,7 @@ class GenericProvider:
         
         Returns a Quality value obtained from the node's data 
         """
-        (title, url) = self._get_title_and_url(item)  # @UnusedVariable
+        (title, url) = self._get_title_and_url(item)
         quality = Quality.sceneQuality(title, anime)
         return quality
 
@@ -236,18 +242,11 @@ class GenericProvider:
         Returns: A tuple containing two strings representing title and URL respectively
         """
 
-        title = None
-        url = None
-
-        if 'title' in item:
-            title = item.title
-
+        title = item.get('title')
         if title:
-            title = title.replace(' ', '.')
+            title = u'' + title.replace(' ', '.')
 
-        if 'link' in item:
-            url = item.link
-
+        url = item.get('link')
         if url:
             url = url.replace('&amp;', '&')
 
@@ -425,8 +424,8 @@ class GenericProvider:
             result.name = title
             result.quality = quality
             result.release_group = release_group
-            result.content = None
             result.version = version
+            result.content = None
 
             if len(epObj) == 1:
                 epNum = epObj[0].episode
@@ -478,3 +477,44 @@ class TorrentProvider(GenericProvider):
         GenericProvider.__init__(self, name)
 
         self.providerType = GenericProvider.TORRENT
+
+class ProviderProxy:
+    def __init__(self):
+        self.Type = 'GlypeProxy'
+        self.param = 'browse.php?u='
+        self.option = '&b=32&f=norefer'
+        self.enabled = False
+        self.url = None
+
+        self.urls = {
+            'getprivate.eu (NL)': 'http://getprivate.eu/',
+            'hideme.nl (NL)': 'http://hideme.nl/',
+            'proxite.eu (DE)': 'http://proxite.eu/',
+            'interproxy.net (EU)': 'http://interproxy.net/',
+        }
+
+    def isEnabled(self):
+        """ Return True if we Choose to call TPB via Proxy """
+        return self.enabled
+
+    def getProxyURL(self):
+        """ Return the Proxy URL Choosen via Provider Setting """
+        return str(self.url)
+
+    def _buildURL(self, url):
+        """ Return the Proxyfied URL of the page """
+        if self.isEnabled():
+            url = self.getProxyURL() + self.param + urllib.quote_plus(url.encode('UTF-8')) + self.option
+            logger.log(u"Proxified URL: " + url, logger.DEBUG)
+
+        return url
+
+    def _buildRE(self, regx):
+        """ Return the Proxyfied RE string """
+        if self.isEnabled():
+            regx = re.sub('//1', self.option, regx).replace('&', '&amp;')
+            logger.log(u"Proxified REGEX: " + regx, logger.DEBUG)
+        else:
+            regx = re.sub('//1', '', regx)
+
+        return regx

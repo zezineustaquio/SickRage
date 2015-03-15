@@ -601,9 +601,8 @@ class BaseIOStream(object):
             pos = self._read_to_buffer_loop()
         except UnsatisfiableReadError:
             raise
-        except Exception as e:
-            if 1 != e.errno:
-                gen_log.warning("error on read", exc_info=True)
+        except Exception:
+            gen_log.warning("error on read", exc_info=True)
             self.close(exc_info=True)
             return
         if pos is not None:
@@ -935,8 +934,9 @@ class IOStream(BaseIOStream):
         return self.socket
 
     def close_fd(self):
-        self.socket.close()
-        self.socket = None
+        if self.socket is not None:
+            self.socket.close()
+            self.socket = None
 
     def get_fd_error(self):
         errno = self.socket.getsockopt(socket.SOL_SOCKET,

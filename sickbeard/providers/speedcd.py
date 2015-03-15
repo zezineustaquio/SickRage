@@ -39,12 +39,6 @@ from sickbeard.helpers import sanitizeSceneName
 
 
 class SpeedCDProvider(generic.TorrentProvider):
-    urls = {'base_url': 'http://speed.cd/',
-            'login': 'http://speed.cd/take_login.php',
-            'detail': 'http://speed.cd/t/%s',
-            'search': 'http://speed.cd/V3/API/API.php',
-            'download': 'http://speed.cd/download.php?torrent=%s',
-    }
 
     def __init__(self):
 
@@ -61,6 +55,13 @@ class SpeedCDProvider(generic.TorrentProvider):
         self.minleech = None
 
         self.cache = SpeedCDCache(self)
+
+        self.urls = {'base_url': 'http://speed.cd/',
+                'login': 'http://speed.cd/take_login.php',
+                'detail': 'http://speed.cd/t/%s',
+                'search': 'http://speed.cd/V3/API/API.php',
+                'download': 'http://speed.cd/download.php?torrent=%s',
+                }
 
         self.url = self.urls['base_url']
 
@@ -151,7 +152,7 @@ class SpeedCDProvider(generic.TorrentProvider):
         items = {'Season': [], 'Episode': [], 'RSS': []}
 
         if not self._doLogin():
-            return []
+            return results
 
         for mode in search_params.keys():
             for search_string in search_params[mode]:
@@ -254,9 +255,7 @@ class SpeedCDCache(tvcache.TVCache):
 
     def _getRSSData(self):
         search_params = {'RSS': ['']}
-        return self.provider._doSearch(search_params)
-
-
+        return {'entries': self.provider._doSearch(search_params)}
 
 provider = SpeedCDProvider()
 

@@ -64,11 +64,31 @@
 						</div>
 
 						<div class="field-pair">
+							<label for="showupdate_hour">
+								<span class="component-title">When to update shows</span>
+								<span class="component-desc">
+									<input type="text" name="showupdate_hour" id="showupdate_hour" value="$sickbeard.SHOWUPDATE_HOUR" class="form-control input-sm input75" />
+									<p>with information such as next air dates, show ended, etc. Use 15 for 3pm, 4 for 4am etc. Anything over 23 or under 0 will be set to 0 (12am)</p>
+								</span>
+							</label>
+						</div>
+						
+						<div class="field-pair">
 							<label for="update_shows_on_start">
 								<span class="component-title">Update shows on startup</span>
 								<span class="component-desc">
 									<input type="checkbox" name="update_shows_on_start" id="update_shows_on_start" #if $sickbeard.UPDATE_SHOWS_ON_START then 'checked="checked"' else ''#/>
 									<p>with information such as next air dates, show ended, etc. Disable for a faster startup as show info is sheduled to update in the background anyway</p>
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair">
+							<label for="update_shows_on_snatch">
+								<span class="component-title">Update shows on snatch</span>
+								<span class="component-desc">
+									<input type="checkbox" name="update_shows_on_snatch" id="update_shows_on_snatch" #if $sickbeard.UPDATE_SHOWS_ON_SNATCH then 'checked="checked"' else ''#/>
+									<p>with information such as next air dates, show ended, etc.</p>
 								</span>
 							</label>
 						</div>
@@ -93,6 +113,26 @@
 								<span class="component-title">Log file folder location</span>
 								<span class="component-desc">
 									<input type="text" name="log_dir" id="log_dir" value="$sickbeard.ACTUAL_LOG_DIR" class="form-control input-sm input350" />
+								</span>
+							</label>
+						</div>
+						
+						<div class="field-pair">
+							<label for="log_nr">
+								<span class="component-title">Number of Log files saved</span>
+								<span class="component-desc">
+									<input type="text" name="log_nr" id="log_nr" value="$sickbeard.LOG_NR" class="form-control input-sm input75" />
+									<p>number of log files saved when rotating logs (default: 5) (REQUIRES RESTART)</p>
+								</span>
+							</label>
+						</div>
+						
+						<div class="field-pair">
+							<label for="log_size">
+								<span class="component-title">Size of Log files saved</span>
+								<span class="component-desc">
+									<input type="text" name="log_size" id="log_size" value="$sickbeard.LOG_SIZE" class="form-control input-sm input75" />
+									<p>maximum size of a log file saved (default: 1048576 (1MB)) (REQUIRES RESTART)</p>
 								</span>
 							</label>
 						</div>
@@ -224,7 +264,15 @@
 								</span>
 							</label>
 						</div>
-
+						<div class="field-pair">
+							<label for="display_filesize">
+								<span class="component-title">Display Filesizes</span>
+								<span class="component-desc">
+									<input type="checkbox" name="display_filesize" id="display_filesize" #if $sickbeard.DISPLAY_FILESIZE == True then 'checked="checked"' else ''#/>
+									<p>display filesizes for downloaded episodes on show page</p>
+								</span>
+							</label>
+						</div>
 						<div class="field-pair">
 							<label for="fuzzy_dating">
 								<span class="component-title">Display fuzzy dates</span>
@@ -296,10 +344,22 @@
 								<span class="component-title">Browser video player</span>
 								<span class="component-desc">
 									<input type="checkbox" name="play_videos" id="play_videos" #if $sickbeard.PLAY_VIDEOS then 'checked="checked"' else ''#/>
-									<p>play video files from display show page<?p>
+									<p>play video files from display show page</p>
 								</span>
 							</label>
 						</div>
+
+						<div class="field-pair">
+							<label for="download_url">
+						    		<span class="component-title">Download url</span>
+						    		<input type="text" name="download_url" id="download_url" value="$sickbeard.DOWNLOAD_URL" size="35" />
+						    	</label>
+						    	<label>
+						    		<span class="component-title">&nbsp;</span>
+								<span class="component-desc">URL where the shows can be downloaded.</span>
+						    	</label>
+						</div>
+
 
 						<input type="submit" class="btn config_submitter" value="Save Changes" />
 
@@ -318,16 +378,6 @@
 					<fieldset class="component-group-list">
 
 						<div class="field-pair">
-							<label for="use_api">
-								<span class="component-title">Enable API</span>
-								<span class="component-desc">
-									<input type="checkbox" name="use_api" class="enabler" id="use_api" #if $sickbeard.USE_API then 'checked="checked"' else ''#/>
-									<p>allow the use of the SickRage API</p>
-								</span>
-							</label>
-						</div>
-						<div id="content_use_api">
-						<div class="field-pair">
 							<label for="api_key">
 								<span class="component-title">API key</span>
 								<span class="component-desc">
@@ -336,7 +386,6 @@
 									<div class="clear-left"><p>used to give 3rd party programs limited access to SickRage</p></div>
 								</span>
 							</label>
-						</div>
 						</div>
 
 						<div class="field-pair">
@@ -438,47 +487,13 @@
 
 				<div id="core-component-group3" class="component-group">
 
+				<div class="component-group">
+
 					<div class="component-group-desc">
 						<h3>Advanced Settings</h3>
-
 					</div>
 
 					<fieldset class="component-group-list">
-
-						<div class="field-pair">
-							<label>
-								<span class="component-title">Branch version:</span>
-								<span class="component-desc">
-									<select id="branchVersion" class="form-control form-control-inline input-sm pull-left">
-									#for $cur_branch in $sickbeard.versionCheckScheduler.action.list_remote_branches():
-										<option value="$cur_branch" #if $cur_branch == $sickbeard.BRANCH then 'selected="selected"' else ''#>$cur_branch</option>
-									#end for
-									</select>
-									<input class="btn btn-inline" style="margin-left: 6px;" type="button" id="branchCheckout" value="Checkout Branch">
-									<div class="clear-left"><p>select branch to use (restart required)</p></div>
-								</span>
-							</label>
-						</div>
-
-						<div class="field-pair">
-							<label for="git_remote">
-								<span class="component-title">Git remote for branch</span>
-								<span class="component-desc">
-									<input type="text" name="git_remote" id="git_remote" value="$sickbeard.GIT_REMOTE" class="form-control input-sm input300" />
-									<div class="clear-left"><p>default:origin. Access repo configured remotes (save then refresh browser)</p></div>
-								</span>
-							</label>
-						</div>
-
-						<div class="field-pair">
-							<label>
-								<span class="component-title">Git executable path</span>
-								<span class="component-desc">
-									<input type="text" name="git_path" value="$sickbeard.GIT_PATH" class="form-control input-sm input300" />
-									<div class="clear-left"><p>only needed if OS is unable to locate git from env</p></div>
-								</span>
-							</label>
-						</div>
 
 						<div class="field-pair">
 							<label>
@@ -548,6 +563,113 @@
 
 						<input type="submit" class="btn config_submitter" value="Save Changes" />
 					</fieldset>
+				</div>
+
+				<div class="component-group">
+
+					<div class="component-group-desc">
+						<h3>GitHub</h3>
+						<p>Options for github related features.</p>
+					</div>
+					<fieldset class="component-group-list">
+
+						<div class="field-pair">
+							<label>
+								<span class="component-title">Branch version:</span>
+								<span class="component-desc">
+									<select id="branchVersion" class="form-control form-control-inline input-sm pull-left">
+									#set $gh_branch = $sickbeard.versionCheckScheduler.action.list_remote_branches()
+									#if $gh_branch:
+										#for $cur_branch in $gh_branch:
+											#if $sickbeard.GIT_USERNAME and $sickbeard.GIT_PASSWORD and $sickbeard.DEVELOPER == 1
+												<option value="$cur_branch" #if $cur_branch == $sickbeard.BRANCH then 'selected="selected"' else ''#>$cur_branch</option>
+											#else if $sickbeard.GIT_USERNAME and $sickbeard.GIT_PASSWORD and $cur_branch in ['master', 'develop']
+												<option value="$cur_branch" #if $cur_branch == $sickbeard.BRANCH then 'selected="selected"' else ''#>$cur_branch</option>
+											#else if $cur_branch == 'master'
+												<option value="$cur_branch" #if $cur_branch == $sickbeard.BRANCH then 'selected="selected"' else ''#>$cur_branch</option>
+											#end if
+										#end for
+									#end if
+									</select>
+									#if not $gh_branch
+									   <input class="btn btn-inline" style="margin-left: 6px;" type="button" id="branchCheckout" value="Checkout Branch" disabled>
+									#else
+									   <input class="btn btn-inline" style="margin-left: 6px;" type="button" id="branchCheckout" value="Checkout Branch">
+									#end if
+									#if not $gh_branch
+									   <div class="clear-left" style="color:#FF0000"><p>Error: No branches found.</p></div>
+									#else
+									   <div class="clear-left"><p>select branch to use (restart required)</p></div>
+									#end if
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair">
+							<label for="git_username">
+								<span class="component-title">GitHub username</span>
+								<span class="component-desc">
+									<input type="text" name="git_username" id="git_username" value="$sickbeard.GIT_USERNAME" class="form-control input-sm input300" />
+									<div class="clear-left"><p>*** (REQUIRED FOR SUBMITTING ISSUES) ***</p></div>
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair">
+							<label for="git_password">
+								<span class="component-title">GitHub password</span>
+								<span class="component-desc">
+									<input type="password" name="git_password" id="git_password" value="$sickbeard.GIT_PASSWORD" class="form-control input-sm input300" />
+									<div class="clear-left"><p>*** (REQUIRED FOR SUBMITTING ISSUES) ***</p></div>
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair">
+							<label for="git_remote">
+								<span class="component-title">GitHub remote for branch</span>
+								<span class="component-desc">
+									<input type="text" name="git_remote" id="git_remote" value="$sickbeard.GIT_REMOTE" class="form-control input-sm input300" />
+									<div class="clear-left"><p>default:origin. Access repo configured remotes (save then refresh browser)</p></div>
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair">
+							<label>
+								<span class="component-title">Git executable path</span>
+								<span class="component-desc">
+									<input type="text" name="git_path" value="$sickbeard.GIT_PATH" class="form-control input-sm input300" />
+									<div class="clear-left"><p>only needed if OS is unable to locate git from env</p></div>
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair">
+							<label for="git_reset">
+								<span class="component-title">Git reset</span>
+								<span class="component-desc">
+									<input type="checkbox" name="git_reset" id="git_reset" #if True == $sickbeard.GIT_RESET then 'checked="checked"' else ''#/>
+									<p>removes untracked files and performs a hard reset on git branch automatically to help resolve update issues</p>
+								</span>
+							</label>
+						</div>
+
+						<div class="field-pair" hidden>
+							<label for="git_autoissues">
+								<span class="component-title">Git auto-issues submit</span>
+								<span class="component-desc">
+									<input type="checkbox" name="git_autoissues" id="git_autoissues" #if True == $sickbeard.GIT_AUTOISSUES then 'checked="checked"' else ''# disable/>
+									<p>automatically submit bug/issue reports to our issue tracker when errors are logged</p>
+								</span>
+							</label>
+						</div>
+
+						<input type="submit" class="btn config_submitter" value="Save Changes" />
+					</fieldset>
+
+				</div>
+
 				</div><!-- /component-group3 //-->
 
 				<br/>

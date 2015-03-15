@@ -59,11 +59,11 @@ class ThePirateBayProvider(generic.TorrentProvider):
 
         self.cache = ThePirateBayCache(self)
 
-        self.proxy = ThePirateBayWebproxy()
+        self.urls = {'base_url': 'https://thepiratebay.se/'}
 
-        self.url = 'http://pirateproxy.net/'
+        self.url = self.urls['base_url']
 
-        self.searchurl = self.url + 'search/%s/0/7/200'  # order by seed       
+        self.searchurl = self.url + 'search/%s/0/7/200' # order by seed
 
         self.re_title_url = '/torrent/(?P<id>\d+)/(?P<title>.*?)//1".+?(?P<url>magnet.*?)//1".+?(?P<seeders>\d+)</td>.+?(?P<leechers>\d+)</td>'
 
@@ -114,11 +114,7 @@ class ThePirateBayProvider(generic.TorrentProvider):
 
         fileName = None
 
-        fileURL = self.proxy._buildURL(self.url + 'ajax_details_filelist.php?id=' + str(torrent_id))
-
-        if self.proxy and self.proxy.isEnabled():
-            self.headers.update({'referer': self.proxy.getProxyURL()})
-
+        fileURL = self.url + 'ajax_details_filelist.php?id=' + str(torrent_id)
         data = self.getURL(fileURL)
         if not data:
             return None
@@ -126,7 +122,9 @@ class ThePirateBayProvider(generic.TorrentProvider):
         filesList = re.findall('<td.+>(.*?)</td>', data)
 
         if not filesList:
-            logger.log(u"Unable to get the torrent file list for " + title, logger.ERROR)
+            # disabled errormsg for now
+            # logger.log(u"Unable to get the torrent file list for " + title, logger.ERROR)
+            return None
 
         videoFiles = filter(lambda x: x.rpartition(".")[2].lower() in mediaExtensions, filesList)
 
@@ -225,16 +223,15 @@ class ThePirateBayProvider(generic.TorrentProvider):
         results = []
         items = {'Season': [], 'Episode': [], 'RSS': []}
 
-        if self.proxy and self.proxy.isEnabled():
-            self.headers.update({'referer': self.proxy.getProxyURL()})
-
         for mode in search_params.keys():
             for search_string in search_params[mode]:
+                if isinstance(search_string, unicode):
+                    search_string = unidecode(search_string)
 
                 if mode != 'RSS':
-                    searchURL = self.proxy._buildURL(self.searchurl % (urllib.quote(unidecode(search_string))))
+                    searchURL = self.searchurl % (urllib.quote(search_string))
                 else:
-                    searchURL = self.proxy._buildURL(self.url + 'tv/latest/')
+                    searchURL = self.url + 'tv/latest/'
 
                 logger.log(u"Search string: " + searchURL, logger.DEBUG)
 
@@ -243,18 +240,14 @@ class ThePirateBayProvider(generic.TorrentProvider):
                     continue
 
                 re_title_url = self.proxy._buildRE(self.re_title_url)
-
-                #Extracting torrent information from data returned by searchURL                   
-                match = re.compile(re_title_url, re.DOTALL).finditer(urllib.unquote(data))
-                for torrent in match:
-
+                matches = re.compile(re_title_url, re.DOTALL).finditer(urllib.unquote(data))
+                for torrent in matches:
                     title = torrent.group('title').replace('_',
                                                            '.')  #Do not know why but SickBeard skip release with '_' in name
                     url = torrent.group('url')
                     id = int(torrent.group('id'))
                     seeders = int(torrent.group('seeders'))
                     leechers = int(torrent.group('leechers'))
-
                     #Filter unseeded torrent
                     if mode != 'RSS' and (seeders < self.minseed or leechers < self.minleech):
                         continue
@@ -340,52 +333,6 @@ class ThePirateBayCache(tvcache.TVCache):
 
     def _getRSSData(self):
         search_params = {'RSS': ['rss']}
-        return self.provider._doSearch(search_params)
-
-
-class ThePirateBayWebproxy:
-    def __init__(self):
-        self.Type = 'GlypeProxy'
-        self.param = 'browse.php?u='
-        self.option = '&b=32'
-        self.enabled = False
-        self.url = None
-
-        self.urls = {
-            'Getprivate.eu (NL)': 'http://getprivate.eu/',
-            '15bb51.info (US)': 'http://15bb51.info/',
-            'Hideme.nl (NL)': 'http://hideme.nl/',
-            'Proxite.eu (DE)': 'http://proxite.eu/',
-            'Webproxy.cz (CZ)': 'http://webproxy.cz/',
-            '2me2u (CZ)': 'http://2me2u.me/',
-            'Interproxy.net (EU)': 'http://interproxy.net/',
-            'Unblockersurf.info (DK)': 'http://unblockersurf.info/',
-            'Hiload.org (NL)': 'http://hiload.org/',
-        }
-
-    def isEnabled(self):
-        """ Return True if we Choose to call TPB via Proxy """
-        return self.enabled
-
-    def getProxyURL(self):
-        """ Return the Proxy URL Choosen via Provider Setting """
-        return str(self.url)
-
-    def _buildURL(self, url):
-        """ Return the Proxyfied URL of the page """
-        if self.isEnabled():
-            url = self.getProxyURL() + self.param + url + self.option
-
-        return url
-
-    def _buildRE(self, regx):
-        """ Return the Proxyfied RE string """
-        if self.isEnabled():
-            regx = re.sub('//1', self.option, regx).replace('&', '&amp;')
-        else:
-            regx = re.sub('//1', '', regx)
-
-        return regx
-
+        return {'entries': self.provider._doSearch(search_params)}
 
 provider = ThePirateBayProvider()

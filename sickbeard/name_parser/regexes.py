@@ -56,10 +56,10 @@ normal_regexes = [
      # Show.Name.S01.E02.E03
      '''
      ^((?P<series_name>.+?)[. _-]+)?             # Show_Name and separator
-     s(?P<season_num>\d+)[. _-]*                 # S01 and optional separator
-     e(?P<ep_num>\d+)                            # E02 and separator
+     (\()?s(?P<season_num>\d+)[. _-]*            # S01 and optional separator
+     e(?P<ep_num>\d+)(\))?                       # E02 and separator
      (([. _-]*e|-)                               # linking e/- char
-     (?P<extra_ep_num>(?!(1080|720|480)[pi])\d+))*   # additional E03/etc
+     (?P<extra_ep_num>(?!(1080|720|480)[pi])\d+)(\))?)*   # additional E03/etc
      [. _-]*((?P<extra_info>.+?)                 # Source_Quality_Etc-
      ((?<![. _-])(?<!WEB)                        # Make sure this is really the release group
      -(?P<release_group>[^- ]+([. _-]\[.*\])?))?)?$              # Group
@@ -198,6 +198,18 @@ normal_regexes = [
 ]
 
 anime_regexes = [
+    ('anime_horriblesubs',
+     # [HorribleSubs] Maria the Virgin Witch - 01 [720p].mkv
+     '''
+     ^(?:\[(?P<release_group>HorribleSubs)\][\s\.])
+     (?:(?P<series_name>.+?)[\s\.]-[\s\.])
+     (?P<ep_ab_num>((?!(1080|720|480)[pi]))\d{1,3})
+     (-(?P<extra_ab_ep_num>((?!(1080|720|480)[pi])|(?![hx].?264))\d{1,3}))?
+     (?:v(?P<version>[0-9]))?
+     (?:[\w\.\s]*)
+     (?:(?:(?:[\[\(])(?P<extra_info>\d{3,4}[xp]?\d{0,4}[\.\w\s-]*)(?:[\]\)]))|(?:\d{3,4}[xp]))
+     .*?
+     '''),
     ('anime_ultimate',
      """
      ^(?:\[(?P<release_group>.+?)\][ ._-]*)

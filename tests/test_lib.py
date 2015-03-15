@@ -25,17 +25,23 @@ import sqlite3
 
 import sys
 import os.path
+from configobj import ConfigObj
 
 sys.path.append(os.path.abspath('..'))
 sys.path.append(os.path.abspath('../lib'))
 
 import sickbeard
-import shutil
 
-from sickbeard import encodingKludge as ek, providers, tvcache
+from sickbeard import providers, tvcache
 from sickbeard import db
 from sickbeard.databases import mainDB
 from sickbeard.databases import cache_db, failed_db
+from sickbeard.tv import TVEpisode
+
+import shutil
+import lib.shutil_custom
+
+shutil.copyfile = lib.shutil_custom.copyfile_custom
 
 #=================
 # test globals
@@ -52,10 +58,6 @@ FILENAME = u"show name - s0" + str(SEASON) + "e0" + str(EPISODE) + ".mkv"
 FILEDIR = os.path.join(TESTDIR, SHOWNAME)
 FILEPATH = os.path.join(FILEDIR, FILENAME)
 SHOWDIR = os.path.join(TESTDIR, SHOWNAME + " final")
-
-#sickbeard.logger.sb_log_instance = sickbeard.logger.SBRotatingLogHandler(os.path.join(TESTDIR, 'sickbeard.log'), sickbeard.logger.NUM_LOGS, sickbeard.logger.LOG_SIZE)
-sickbeard.logger.SBRotatingLogHandler.log_file = os.path.join(os.path.join(TESTDIR, 'Logs'), 'test_sickbeard.log')
-
 
 #=================
 # prepare env functions
@@ -74,6 +76,7 @@ def createTestCacheFolder():
 # sickbeard globals
 #=================
 sickbeard.SYS_ENCODING = 'UTF-8'
+
 sickbeard.showList = []
 sickbeard.QUALITY_DEFAULT = 4  # hdtv
 sickbeard.FLATTEN_FOLDERS_DEFAULT = 0
@@ -90,12 +93,22 @@ sickbeard.providerList = providers.makeProviderList()
 
 sickbeard.PROG_DIR = os.path.abspath('..')
 sickbeard.DATA_DIR = sickbeard.PROG_DIR
+sickbeard.CONFIG_FILE = os.path.join(sickbeard.DATA_DIR, "config.ini")
+sickbeard.CFG = ConfigObj(sickbeard.CONFIG_FILE)
+
+sickbeard.BRANCG = sickbeard.config.check_setting_str(sickbeard.CFG, 'General', 'branch', '')
+sickbeard.CUR_COMMIT_HASH = sickbeard.config.check_setting_str(sickbeard.CFG, 'General', 'cur_commit_hash', '')
+sickbeard.GIT_USERNAME = sickbeard.config.check_setting_str(sickbeard.CFG, 'General', 'git_username', '')
+sickbeard.GIT_PASSWORD = sickbeard.config.check_setting_str(sickbeard.CFG, 'General', 'git_password', '', censor_log=True)
+
 sickbeard.LOG_DIR = os.path.join(TESTDIR, 'Logs')
+sickbeard.logger.logFile = os.path.join(sickbeard.LOG_DIR, 'test_sickbeard.log')
 createTestLogFolder()
-sickbeard.logger.sb_log_instance.initLogging(False)
 
 sickbeard.CACHE_DIR = os.path.join(TESTDIR, 'cache')
 createTestCacheFolder()
+
+sickbeard.logger.initLogging(False, True)
 
 #=================
 # dummy functions
@@ -112,8 +125,7 @@ mainDB.sickbeard.save_config = _dummy_saveConfig
 def _fake_specifyEP(self, season, episode):
     pass
 
-sickbeard.tv.TVEpisode.specifyEpisode = _fake_specifyEP
-
+TVEpisode.specifyEpisode = _fake_specifyEP
 
 #=================
 # test classes

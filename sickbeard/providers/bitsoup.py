@@ -38,19 +38,19 @@ from unidecode import unidecode
 
 
 class BitSoupProvider(generic.TorrentProvider):
-    urls = {'base_url': 'https://www.bitsoup.me',
-            'login': 'https://www.bitsoup.me/takelogin.php',
-            'detail': 'https://www.bitsoup.me/details.php?id=%s',
-            'search': 'https://www.bitsoup.me/browse.php?search=%s%s',
-            'download': 'https://bitsoup.me/%s',
-    }
-
     def __init__(self):
-
         generic.TorrentProvider.__init__(self, "BitSoup")
 
-        self.supportsBacklog = True
+        self.urls = {'base_url': 'https://www.bitsoup.me',
+                'login': 'https://www.bitsoup.me/takelogin.php',
+                'detail': 'https://www.bitsoup.me/details.php?id=%s',
+                'search': 'https://www.bitsoup.me/browse.php?search=%s%s',
+                'download': 'https://bitsoup.me/%s',
+        }
 
+        self.url = self.urls['base_url']
+
+        self.supportsBacklog = True
         self.enabled = False
         self.username = None
         self.password = None
@@ -59,8 +59,6 @@ class BitSoupProvider(generic.TorrentProvider):
         self.minleech = None
 
         self.cache = BitSoupCache(self)
-
-        self.url = self.urls['base_url']
 
         self.categories = "&c42=1&c45=1&c49=1&c7=1"
 
@@ -157,7 +155,7 @@ class BitSoupProvider(generic.TorrentProvider):
         items = {'Season': [], 'Episode': [], 'RSS': []}
 
         if not self._doLogin():
-            return []
+            return results
 
         for mode in search_params.keys():
             for search_string in search_params[mode]:
@@ -228,6 +226,10 @@ class BitSoupProvider(generic.TorrentProvider):
 
         title, url, id, seeders, leechers = item
 
+        if title:
+            title = u'' + title
+            title = title.replace(' ', '.')
+
         if url:
             url = str(url).replace('&amp;', '&')
 
@@ -246,10 +248,7 @@ class BitSoupProvider(generic.TorrentProvider):
             ' OR (e.status IN (' + ','.join([str(x) for x in Quality.SNATCHED]) + ')))'
         )
 
-        if not sqlResults:
-            return []
-
-        for sqlshow in sqlResults:
+        for sqlshow in sqlResults or []:
             self.show = helpers.findCertainShow(sickbeard.showList, int(sqlshow["showid"]))
             if self.show:
                 curEp = self.show.getEpisode(int(sqlshow["season"]), int(sqlshow["episode"]))
@@ -276,7 +275,7 @@ class BitSoupCache(tvcache.TVCache):
 
     def _getRSSData(self):
         search_params = {'RSS': ['']}
-        return self.provider._doSearch(search_params)
+        return {'entries': self.provider._doSearch(search_params)}
 
 
 provider = BitSoupProvider()

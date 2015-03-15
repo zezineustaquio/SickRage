@@ -20,6 +20,7 @@ import os
 
 import re
 import datetime
+from functools import partial
 
 import sickbeard
 from sickbeard import common
@@ -114,11 +115,15 @@ def sceneToNormalShowNames(name):
     return list(set(results))
 
 
-def makeSceneShowSearchStrings(show, season=-1):
+def makeSceneShowSearchStrings(show, season=-1, anime=False):
     showNames = allPossibleShowNames(show, season=season)
 
     # scenify the names
-    return map(sanitizeSceneName, showNames)
+    if anime:
+        sanitizeSceneNameAnime = partial(sanitizeSceneName, anime=True)
+        return map(sanitizeSceneNameAnime, showNames)
+    else:
+        return map(sanitizeSceneName, showNames)
 
 
 def makeSceneSeasonSearchString(show, ep_obj, extraSearchType=None):
@@ -234,7 +239,7 @@ def isGoodResult(name, show, log=True, season=-1):
 
     all_show_names = allPossibleShowNames(show, season=season)
     showNames = map(sanitizeSceneName, all_show_names) + all_show_names
-    showNames += map(ek.toUnicode, all_show_names)
+    showNames += map(ek.ss, all_show_names)
 
     for curName in set(showNames):
         if not show.is_anime:

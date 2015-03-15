@@ -44,7 +44,8 @@ class TokyoToshokanProvider(generic.TorrentProvider):
 
         self.cache = TokyoToshokanCache(self)
 
-        self.url = 'http://tokyotosho.info/'
+        self.urls = {'base_url': 'http://tokyotosho.info/'}
+        self.url = self.urls['base_url']
 
     def isEnabled(self):
         return self.enabled
@@ -164,12 +165,7 @@ class TokyoToshokanCache(tvcache.TVCache):
 
         logger.log(u"TokyoToshokan cache update URL: " + url, logger.DEBUG)
 
-        data = self.getRSSFeed(url)
-
-        if data and 'entries' in data:
-            return data.entries
-        else:
-            return []
+        return self.getRSSFeed(url)
 
 
 provider = TokyoToshokanProvider()

@@ -12,9 +12,9 @@
 <script type="text/javascript" src="$sbRoot/js/configNotifications.js?$sbPID"></script>
 <script type="text/javascript" src="$sbRoot/js/config.js?$sbPID"></script>
 
-#if $varExists('header') 
+#if $varExists('header')
     <h1 class="header">$header</h1>
-#else 
+#else
     <h1 class="title">$title</h1>
 #end if
 
@@ -30,129 +30,129 @@
 
                 <div id="tabs-1">
                 <div class="component-group">
-                
+
                     <div class="component-group-desc">
-                        <img class="notifier-icon" src="$sbRoot/images/notifiers/xbmc.png" alt="" title="XBMC" />
-                        <h3><a href="<%= anon_url('http://kodi.tv/') %>" rel="noreferrer" onclick="window.open(this.href, '_blank'); return false;">XBMC</a></h3>
+                        <img class="notifier-icon" src="$sbRoot/images/notifiers/kodi.png" alt="" title="KODI" />
+                        <h3><a href="<%= anon_url('http://kodi.tv/') %>" rel="noreferrer" onclick="window.open(this.href, '_blank'); return false;">KODI</a></h3>
                         <p>A free and open source cross-platform media center and home entertainment system software with a 10-foot user interface designed for the living-room TV.</p>
                     </div>
                     <fieldset class="component-group-list">
                         <div class="field-pair">
-                            <label class="cleafix" for="use_xbmc">
+                            <label class="cleafix" for="use_kodi">
                                 <span class="component-title">Enable</span>
                                 <span class="component-desc">
-                                    <input type="checkbox" class="enabler" name="use_xbmc" id="use_xbmc" #if $sickbeard.USE_XBMC then "checked=\"checked\"" else ""# />
-                                    <p>should SickRage send XBMC commands ?<p>
+                                    <input type="checkbox" class="enabler" name="use_kodi" id="use_kodi" #if $sickbeard.USE_KODI then "checked=\"checked\"" else ""# />
+                                    <p>should SickRage send KODI commands ?<p>
                                 </span>
                             </label>
                         </div>
 
-                        <div id="content_use_xbmc">
+                        <div id="content_use_kodi">
                             <div class="field-pair">
-                                <label for="xbmc_always_on">
+                                <label for="kodi_always_on">
                                     <span class="component-title">Always on</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_always_on" id="xbmc_always_on" #if $sickbeard.XBMC_ALWAYS_ON then "checked=\"checked\"" else ""# />
+                                        <input type="checkbox" name="kodi_always_on" id="kodi_always_on" #if $sickbeard.KODI_ALWAYS_ON then "checked=\"checked\"" else ""# />
                                         <p>log errors when unreachable ?</p>
                                     </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_notify_onsnatch">
+                                <label for="kodi_notify_onsnatch">
                                     <span class="component-title">Notify on snatch</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_notify_onsnatch" id="xbmc_notify_onsnatch" #if $sickbeard.XBMC_NOTIFY_ONSNATCH then "checked=\"checked\"" else ""# />
+                                        <input type="checkbox" name="kodi_notify_onsnatch" id="kodi_notify_onsnatch" #if $sickbeard.KODI_NOTIFY_ONSNATCH then "checked=\"checked\"" else ""# />
                                         <p>send a notification when a download starts ?</p>
                                     </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_notify_ondownload">
+                                <label for="kodi_notify_ondownload">
                                     <span class="component-title">Notify on download</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_notify_ondownload" id="xbmc_notify_ondownload" #if $sickbeard.XBMC_NOTIFY_ONDOWNLOAD then "checked=\"checked\"" else ""# />
+                                        <input type="checkbox" name="kodi_notify_ondownload" id="kodi_notify_ondownload" #if $sickbeard.KODI_NOTIFY_ONDOWNLOAD then "checked=\"checked\"" else ""# />
                                         <p>send a notification when a download finishes ?</p>
                                     </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_notify_onsubtitledownload">
+                                <label for="kodi_notify_onsubtitledownload">
                                     <span class="component-title">Notify on subtitle download</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_notify_onsubtitledownload" id="xbmc_notify_onsubtitledownload" #if $sickbeard.XBMC_NOTIFY_ONSUBTITLEDOWNLOAD then "checked=\"checked\"" else ""# />
+                                        <input type="checkbox" name="kodi_notify_onsubtitledownload" id="kodi_notify_onsubtitledownload" #if $sickbeard.KODI_NOTIFY_ONSUBTITLEDOWNLOAD then "checked=\"checked\"" else ""# />
                                         <p>send a notification when subtitles are downloaded ?</p>
                                     </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_update_library">
+                                <label for="kodi_update_library">
                                     <span class="component-title">Update library</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_update_library" id="xbmc_update_library" #if $sickbeard.XBMC_UPDATE_LIBRARY then "checked=\"checked\"" else ""# />
-                                        <p>update XBMC library when a download finishes ?</p>
+                                        <input type="checkbox" name="kodi_update_library" id="kodi_update_library" #if $sickbeard.KODI_UPDATE_LIBRARY then "checked=\"checked\"" else ""# />
+                                        <p>update KODI library when a download finishes ?</p>
                                     </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_update_full">
+                                <label for="kodi_update_full">
                                     <span class="component-title">Full library update</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_update_full" id="xbmc_update_full" #if $sickbeard.XBMC_UPDATE_FULL then "checked=\"checked\"" else ""# />
+                                        <input type="checkbox" name="kodi_update_full" id="kodi_update_full" #if $sickbeard.KODI_UPDATE_FULL then "checked=\"checked\"" else ""# />
                                         <p>perform a full library update if update per-show fails ?</p>
                                     </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_update_onlyfirst">
+                                <label for="kodi_update_onlyfirst">
                                     <span class="component-title">Only update first host</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="xbmc_update_onlyfirst" id="xbmc_update_onlyfirst" #if $sickbeard.XBMC_UPDATE_ONLYFIRST then "checked=\"checked\"" else ""# />
+                                        <input type="checkbox" name="kodi_update_onlyfirst" id="kodi_update_onlyfirst" #if $sickbeard.KODI_UPDATE_ONLYFIRST then "checked=\"checked\"" else ""# />
                                         <p>only send library updates to the first active host ?</p>
                                     </span>
                                 </label>
-                            </div>                            
+                            </div>
                             <div class="field-pair">
-                                <label for="xbmc_host">
-                                    <span class="component-title">XBMC IP:Port</span>
-                                    <input type="text" name="xbmc_host" id="xbmc_host" value="$sickbeard.XBMC_HOST" class="form-control input-sm input350" />
+                                <label for="kodi_host">
+                                    <span class="component-title">KODI IP:Port</span>
+                                    <input type="text" name="kodi_host" id="kodi_host" value="$sickbeard.KODI_HOST" class="form-control input-sm input350" />
                                 </label>
                                 <label>
                                     <span class="component-title">&nbsp;</span>
-                                    <span class="component-desc">host running XBMC (eg. 192.168.1.100:8080)</span>
+                                    <span class="component-desc">host running KODI (eg. 192.168.1.100:8080)</span>
                                 </label>
                                 <label>
                                     <span class="component-title">&nbsp;</span>
                                     <span class="component-desc">(multiple host strings must be separated by commas)</span>
-                                </label>                         
-                            </div>
-                            <div class="field-pair">
-                                <label for="xbmc_username">
-                                    <span class="component-title">XBMC username</span>
-                                    <input type="text" name="xbmc_username" id="xbmc_username" value="$sickbeard.XBMC_USERNAME" class="form-control input-sm input250" />
-                                </label>
-                                <label>
-                                    <span class="component-title">&nbsp;</span>
-                                    <span class="component-desc">username for your XBMC server (blank for none)</span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="xbmc_password">
-                                    <span class="component-title">XBMC password</span>
-                                    <input type="password" name="xbmc_password" id="xbmc_password" value="$sickbeard.XBMC_PASSWORD" class="form-control input-sm input250" />
+                                <label for="kodi_username">
+                                    <span class="component-title">KODI username</span>
+                                    <input type="text" name="kodi_username" id="kodi_username" value="$sickbeard.KODI_USERNAME" class="form-control input-sm input250" />
                                 </label>
                                 <label>
                                     <span class="component-title">&nbsp;</span>
-                                    <span class="component-desc">password for your XBMC server (blank for none)</span>
+                                    <span class="component-desc">username for your KODI server (blank for none)</span>
                                 </label>
                             </div>
-                            <div class="testNotification" id="testXBMC-result">Click below to test.</div>
-                            <input  class="btn" type="button" value="Test XBMC" id="testXBMC" />
+                            <div class="field-pair">
+                                <label for="kodi_password">
+                                    <span class="component-title">KODI password</span>
+                                    <input type="password" name="kodi_password" id="kodi_password" value="$sickbeard.KODI_PASSWORD" class="form-control input-sm input250" />
+                                </label>
+                                <label>
+                                    <span class="component-title">&nbsp;</span>
+                                    <span class="component-desc">password for your KODI server (blank for none)</span>
+                                </label>
+                            </div>
+                            <div class="testNotification" id="testKODI-result">Click below to test.</div>
+                            <input  class="btn" type="button" value="Test KODI" id="testKODI" />
                             <input type="submit" class="config_submitter btn" value="Save Changes" />
-                        </div><!-- /content_use_xbmc //-->
+                        </div><!-- /content_use_kodi //-->
 
                     </fieldset>
-                    
-                </div><!-- /xbmc component-group //-->
+
+                </div><!-- /kodi component-group //-->
 
 
                 <div class="component-group">
@@ -160,7 +160,7 @@
                         <img class="notifier-icon" src="$sbRoot/images/notifiers/plex.png" alt="" title="Plex Media Server" />
                         <h3><a href="<%= anon_url('http://www.plexapp.com/') %>" rel="noreferrer" onclick="window.open(this.href, '_blank'); return false;">Plex Media Server</a></h3>
                         <p>Experience your media on a visually stunning, easy to use interface on your Mac connected to your TV. Your media library has never looked this good!</p>
-                        <p class="plexinfo hide">For sending notifications to Plex Home Theater (PHT) clients, use the XBMC notifier with port <b>3005</b>.</p>
+                        <p class="plexinfo hide">For sending notifications to Plex Home Theater (PHT) clients, use the KODI notifier with port <b>3005</b>.</p>
                     </div>
                     <fieldset class="component-group-list">
                         <div class="field-pair">
@@ -221,6 +221,20 @@
                                 </label>
                             </div>
                             <div class="field-pair">
+                                <label for="plex_server_token">
+                                    <span class="component-title">Plex Media Server Auth Token</span>
+                                    <input type="text" name="plex_server_token" id="plex_server_token" value="$sickbeard.PLEX_SERVER_TOKEN" class="form-control input-sm input250" />
+                                </label>
+                                <label>
+                                    <span class="component-title">&nbsp;</span>
+                                    <span class="component-desc">Auth Token used by plex</span>
+                                </label>
+                                <label>
+                                    <span class="component-title">&nbsp;</span>
+                                    <span class="component-desc">(<a href="<%= anon_url('https://support.plex.tv/hc/en-us/articles/204059436-Finding-your-account-token-X-Plex-Token') %>" rel="noreferrer" onclick="window.open(this.href, '_blank'); return false;"><u>Finding your account token</u></a>)</span>
+                                </label>
+                            </div>
+                            <div class="field-pair">
                                 <label for="plex_host">
                                     <span class="component-title">Plex Client IP:Port</span>
                                     <input type="text" name="plex_host" id="plex_host" value="$sickbeard.PLEX_HOST" class="form-control input-sm input350" />
@@ -232,7 +246,7 @@
                                 <label>
                                     <span class="component-title">&nbsp;</span>
                                     <span class="component-desc">(multiple host strings must be separated by commas)</span>
-                                </label>                                
+                                </label>
                             </div>
                             <div class="field-pair">
                                 <label for="plex_username">
@@ -365,9 +379,9 @@
                                     </label>
                                     <label for="NMJV2_DBLOC_B">
                                         <input type="radio" NAME="nmjv2_dbloc" VALUE="network" id="NMJV2_DBLOC_B" #if $sickbeard.NMJv2_DBLOC=="network" then "checked=\"checked\"" else ""#/>PCH Network Media
-                                    </label>                            
+                                    </label>
                                 </span>
-                            </div>    
+                            </div>
                             <div class="field-pair">
                                 <label for="NMJv2db_instance">
                                     <span class="component-title">Database instance</span>
@@ -415,7 +429,7 @@
 
                     </fieldset>
                 </div><!-- /nmjv2 component-group //-->
-                
+
 
                 <div class="component-group">
                     <div class="component-group-desc">
@@ -430,7 +444,7 @@
                             <label for="use_synoindex">
                                 <span class="component-title">Enable</span>
                                 <span class="component-desc">
-                                    <input type="checkbox" class="enabler" name="use_synoindex" id="use_synoindex" #if $sickbeard.USE_SYNOINDEX then "checked=\"checked\"" else ""# /> 
+                                    <input type="checkbox" class="enabler" name="use_synoindex" id="use_synoindex" #if $sickbeard.USE_SYNOINDEX then "checked=\"checked\"" else ""# />
                                     <p>should SickRage send Synology notifications ?</p>
                                 </span>
                             </label>
@@ -446,8 +460,8 @@
 
                     </fieldset>
                 </div><!-- /synoindex component-group //-->
-                
-                
+
+
                 <div class="component-group">
                     <div class="component-group-desc">
                         <img class="notifier-icon" src="$sbRoot/images/notifiers/synologynotifier.png" alt="" title="Synology Indexer" />
@@ -563,7 +577,7 @@
 
             </div>
 
-            
+
             <div id="tabs-2">
                 <div class="component-group">
                     <div class="component-group-desc">
@@ -576,7 +590,7 @@
                             <label for="use_growl">
                                 <span class="component-title">Enable</span>
                                 <span class="component-desc">
-                                    <input type="checkbox" class="enabler" name="use_growl" id="use_growl" #if $sickbeard.USE_GROWL then "checked=\"checked\"" else ""# /> 
+                                    <input type="checkbox" class="enabler" name="use_growl" id="use_growl" #if $sickbeard.USE_GROWL then "checked=\"checked\"" else ""# />
                                     <p>should SickRage send Growl notifications ?</p>
                                 </span>
                             </label>
@@ -587,7 +601,7 @@
                                 <label for="growl_notify_onsnatch">
                                     <span class="component-title">Notify on snatch</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" name="growl_notify_onsnatch" id="growl_notify_onsnatch" #if $sickbeard.GROWL_NOTIFY_ONSNATCH then "checked=\"checked\"" else ""# /> 
+                                        <input type="checkbox" name="growl_notify_onsnatch" id="growl_notify_onsnatch" #if $sickbeard.GROWL_NOTIFY_ONSNATCH then "checked=\"checked\"" else ""# />
                                         <p>send a notification when a download starts ?</p>
                                     </span>
                                 </label>
@@ -1192,9 +1206,81 @@
 
                     </fieldset>
                 </div><!-- /pushbullet component-group //-->
+                <div class="component-group">
+                    <div class="component-group-desc">
+                        <img class="notifier-icon" src="$sbRoot/images/notifiers/freemobile.png" alt="" title="Free Mobile" />
+                        <h3><a href="<%= anon_url('http://mobile.free.fr/') %>" rel="noreferrer" onclick="window.open(this.href, '_blank'); return false;">Free Mobile</a></h3>
+                        <p>Free Mobile is a famous French cellular network provider.<br> It provides to their customer a free SMS API.</p>
+                    </div>
+                    <fieldset class="component-group-list">
+                        <div class="field-pair">
+                            <label for="use_freemobile">
+                                <span class="component-title">Enable</span>
+                                <span class="component-desc">
+                                    <input type="checkbox" class="enabler" name="use_freemobile" id="use_freemobile" #if $sickbeard.USE_FREEMOBILE then "checked=\"checked\"" else ""# />
+                                    <p>should SickRage send SMS notifications ?</p>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div id="content_use_freemobile">
+                            <div class="field-pair">
+                                <label for="freemobile_notify_onsnatch">
+                                    <span class="component-title">Notify on snatch</span>
+                                    <span class="component-desc">
+                                        <input type="checkbox" name="freemobile_notify_onsnatch" id="freemobile_notify_onsnatch" #if $sickbeard.FREEMOBILE_NOTIFY_ONSNATCH then "checked=\"checked\"" else ""# />
+                                        <p>send a SMS when a download starts ?</p>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="field-pair">
+                                <label for="freemobile_notify_ondownload">
+                                    <span class="component-title">Notify on download</span>
+                                    <span class="component-desc">
+                                        <input type="checkbox" name="freemobile_notify_ondownload" id="freemobile_notify_ondownload" #if $sickbeard.FREEMOBILE_NOTIFY_ONDOWNLOAD then "checked=\"checked\"" else ""# />
+                                        <p>send a SMS when a download finishes ?</p>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="field-pair">
+                                <label for="freemobile_notify_onsubtitledownload">
+                                    <span class="component-title">Notify on subtitle download</span>
+                                    <span class="component-desc">
+                                        <input type="checkbox" name="freemobile_notify_onsubtitledownload" id="freemobile_notify_onsubtitledownload" #if $sickbeard.FREEMOBILE_NOTIFY_ONSUBTITLEDOWNLOAD then "checked=\"checked\"" else ""# />
+                                        <p>send a SMS when subtitles are downloaded ?</p>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="field-pair">
+                                <label for="freemobile_id">
+                                    <span class="component-title">Free Mobile customer ID</span>
+                                    <input type="text" name="freemobile_id" id="freemobile_id" value="$sickbeard.FREEMOBILE_ID" class="form-control input-sm input250" />
+                                </label>
+                                <label>
+                                    <span class="component-title">&nbsp;</span>
+                                    <span class="component-desc">It's your Free Mobile customer ID (8 digits)</span>
+                                </label>
+                            </div>
+                            <div class="field-pair">
+                                <label for="freemobile_password">
+                                    <span class="component-title">Free Mobile API Key</span>
+                                    <input type="text" name="freemobile_apikey" id="freemobile_apikey" value="$sickbeard.FREEMOBILE_APIKEY" class="form-control input-sm input250" />
+                                </label>
+                                <label>
+                                    <span class="component-title">&nbsp;</span>
+                                    <span class="component-desc">Find your API Key in your customer portal.</span>
+                                </label>
+                            </div>
+                            <div class="testNotification" id="testFreeMobile-result">Click below to test your settings.</div>
+                            <input  class="btn" type="button" value="Test SMS" id="testFreeMobile" />
+                            <input type="submit" class="config_submitter btn" value="Save Changes" />
+                        </div><!-- /content_use_freemobile //-->
+
+                    </fieldset>
+                </div><!-- /freemobile component-group //-->
 
             </div>
-            
+
             <div id="tabs-3">
                 <div class="component-group">
                        <div class="component-group-desc">
@@ -1303,30 +1389,38 @@
                                     <span class="component-title">Trakt username</span>
                                     <input type="text" name="trakt_username" id="trakt_username" value="$sickbeard.TRAKT_USERNAME" class="form-control input-sm input250" />
                                 </label>
-                                <label>
-                                    <span class="component-title">&nbsp;</span>
+                                <p>
                                     <span class="component-desc">username of your Trakt account.</span>
-                                </label>
+                                </p>
                             </div>
                             <div class="field-pair">
                                 <label for="trakt_password">
                                     <span class="component-title">Trakt password</span>
                                     <input type="password" name="trakt_password" id="trakt_password" value="$sickbeard.TRAKT_PASSWORD" class="form-control input-sm input250" />
                                 </label>
-                                <label>
-                                    <span class="component-title">&nbsp;</span>
+                                <p>
                                     <span class="component-desc">password of your Trakt account.</span>
+                                </p>
+                            </div>
+                            <div class="field-pair">
+                                <label for="trakt_disable_ssl_verify">
+                                    <span class="component-title">Disable SSL Verification:</span>
+                                    <span class="component-desc">
+                                        <input type="checkbox" class="enabler" name="trakt_disable_ssl_verify" id="trakt_disable_ssl_verify" #if $sickbeard.TRAKT_DISABLE_SSL_VERIFY then "checked=\"checked\"" else ""# />
+                                        <p>Disable SSL certificate verification for broken SSL installs (like QNAP NAS)</p>
+                                    </span>
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="trakt_api">
-                                    <span class="component-title">Trakt API key:</span>
-                                    <input type="text" name="trakt_api" id="trakt_api" value="$sickbeard.TRAKT_API" class="form-control input-sm input250" />
+                                <label for="trakt_timeout">
+                                    <span class="component-title">API Timeout:</span>
+                                    <input type="text" name="trakt_timeout" id="trakt_timeout" value="$sickbeard.TRAKT_TIMEOUT" class="form-control input-sm input75" />
                                 </label>
-                                <label>
-                                    <span class="component-title">&nbsp;</span>
-                                    <span class="component-desc">get your key at: <a href="<%= anon_url('http://trakt.tv/settings/api') %>" rel="noreferrer" onclick="window.open(this.href, '_blank'); return false;"><b>http://trakt.tv/settings/api</b></a></span>
-                                </label>
+                                <p>
+                                    <span class="component-desc">
+                                        Seconds to wait for Trakt API to respond. (Use 0 to wait forever)
+                                    </span>
+                                </p>
                             </div>
                             <div class="field-pair">
                                 <label for="trakt_default_indexer">
@@ -1350,15 +1444,16 @@
                                 </label>
                             </div>
                             <div class="field-pair">
-                                <label for="trakt_use_watchlist">
-                                    <span class="component-title">Use watchlist:</span>
+                                <label for="trakt_sync_watchlist">
+                                    <span class="component-title">Sync watchlist:</span>
                                     <span class="component-desc">
-                                        <input type="checkbox" class="enabler" name="trakt_use_watchlist" id="trakt_use_watchlist" #if $sickbeard.TRAKT_USE_WATCHLIST then "checked=\"checked\"" else ""# />
-                                        <p>get new shows from your trakt watchlist.</p>
+                                        <input type="checkbox" class="enabler" name="trakt_sync_watchlist" id="trakt_sync_watchlist" #if $sickbeard.TRAKT_SYNC_WATCHLIST then "checked=\"checked\"" else ""# />
+                                        <p>sync your SickRage show watchlist with your trakt show watchlist (either Show and Episode).</p>
+                                        <p>Episode will be added on watch list when wanted or snatched and will be removed when downloaded </p>
                                     </span>
                                 </label>
                             </div>
-                            <div id="content_trakt_use_watchlist">
+                            <div id="content_trakt_sync_watchlist">
                                 <div class="field-pair">
                                     <label for="trakt_method_add">
                                         <span class="component-title">Watchlist add method:</span>
@@ -1372,7 +1467,7 @@
                                         <span class="component-title">&nbsp;</span>
                                         <span class="component-desc">method in which to download episodes for new show's.</span>
                                     </label>
-                                </div>                            
+                                </div>
                                 <div class="field-pair">
                                     <label for="trakt_remove_watchlist">
                                         <span class="component-title">Remove episode:</span>
@@ -1381,8 +1476,8 @@
                                             <p>remove an episode from your watchlist after it is downloaded.</p>
                                         </span>
                                     </label>
-                                 </div>                            
-                                <div class="field-pair">                                   
+                                 </div>
+                                <div class="field-pair">
                                     <label for="trakt_remove_serieslist">
                                         <span class="component-title">Remove series:</span>
                                         <span class="component-desc">
@@ -1536,6 +1631,10 @@
                                 <label>
                                     <span class="component-title">&nbsp;</span>
                                     <span class="component-desc">configure per show notifications here.</span>
+                                </label>
+                                <label>
+                                    <span class="component-title">&nbsp;</span>
+                                    <input id="email_show_save" class="btn" type="button" value="Save for this show" />
                                 </label>
                             </div>
 

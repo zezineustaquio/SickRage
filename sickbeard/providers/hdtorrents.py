@@ -40,14 +40,6 @@ from sickbeard.helpers import sanitizeSceneName
 
 
 class HDTorrentsProvider(generic.TorrentProvider):
-    urls = {'base_url': 'https://hdts.ru/index.php',
-            'login': 'https://hdts.ru/login.php',
-            'detail': 'https://www.hdts.ru/details.php?id=%s',
-            'search': 'https://hdts.ru/torrents.php?search=%s&active=1&options=0%s',
-            'download': 'https://www.sceneaccess.eu/%s',
-            'home': 'https://www.hdts.ru/%s'
-    }
-
     def __init__(self):
 
         generic.TorrentProvider.__init__(self, "HDTorrents")
@@ -63,9 +55,17 @@ class HDTorrentsProvider(generic.TorrentProvider):
         self.minseed = None
         self.minleech = None
 
-        self.cache = HDTorrentsCache(self)
+        self.urls = {'base_url': 'https://hdts.ru/index.php',
+                     'login': 'https://hdts.ru/login.php',
+                     'detail': 'https://www.hdts.ru/details.php?id=%s',
+                     'search': 'https://hdts.ru/torrents.php?search=%s&active=1&options=0%s',
+                     'download': 'https://www.sceneaccess.eu/%s',
+                     'home': 'https://www.hdts.ru/%s'
+        }
 
         self.url = self.urls['base_url']
+
+        self.cache = HDTorrentsCache(self)
 
         self.categories = "&category[]=59&category[]=60&category[]=30&category[]=38"
 
@@ -179,7 +179,7 @@ class HDTorrentsProvider(generic.TorrentProvider):
         items = {'Season': [], 'Episode': [], 'RSS': []}
 
         if not self._doLogin():
-            return []
+            return results
 
         for mode in search_params.keys():
             for search_string in search_params[mode]:
@@ -342,7 +342,7 @@ class HDTorrentsCache(tvcache.TVCache):
 
     def _getRSSData(self):
         search_params = {'RSS': []}
-        return self.provider._doSearch(search_params)
+        return {'entries': self.provider._doSearch(search_params)}
 
 
 provider = HDTorrentsProvider()

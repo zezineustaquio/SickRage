@@ -49,7 +49,7 @@ class DailySearcher():
         if network_timezones.network_dict:
             curDate = (datetime.date.today() + datetime.timedelta(days=1)).toordinal()
         else:
-            curDate = (datetime.date.today() - datetime.timedelta(days=2)).toordinal()
+            curDate = (datetime.date.today() + datetime.timedelta(days=2)).toordinal()
 
         curTime = datetime.datetime.now(network_timezones.sb_timezone)
 
@@ -74,7 +74,9 @@ class DailySearcher():
                 continue
 
             try:
-                end_time = network_timezones.parse_date_time(sqlEp['airdate'], show.airs, show.network) + datetime.timedelta(minutes=helpers.tryInt(show.runtime, 60))
+                end_time = network_timezones.parse_date_time(sqlEp['airdate'], show.airs,
+                                                             show.network) + datetime.timedelta(
+                    minutes=helpers.tryInt(show.runtime, 60))
                 # filter out any episodes that haven't aried yet
                 if end_time > curTime:
                     continue

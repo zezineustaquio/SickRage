@@ -17,11 +17,11 @@
 # along with SickRage.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import with_statement
-import getpass
 
 import os
+import ctypes
+import random
 import re
-import shutil
 import socket
 import stat
 import tempfile
@@ -35,24 +35,16 @@ import uuid
 import base64
 import zipfile
 import datetime
+import errno
 
 import sickbeard
 import subliminal
 import adba
 import requests
 import requests.exceptions
+import xmltodict
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
-try:
-    import xml.etree.cElementTree as etree
-except ImportError:
-    import elementtree.ElementTree as etree
-
-from xml.dom.minidom import Node
+import subprocess
 
 from sickbeard.exceptions import MultipleShowObjectsException, ex
 from sickbeard import logger, classes
@@ -64,6 +56,11 @@ from sickbeard import clients
 
 from cachecontrol import CacheControl, caches
 from itertools import izip, cycle
+
+import shutil
+import lib.shutil_custom
+
+shutil.copyfile = lib.shutil_custom.copyfile_custom
 
 urllib._urlopener = classes.SickBeardURLopener()
 
@@ -138,7 +135,9 @@ def replaceExtension(filename, newExt):
 
 def isSyncFile(filename):
     extension = filename.rpartition(".")[2].lower()
-    if extension == '!sync' or extension == 'lftp-pget-status':
+    #if extension == '!sync' or extension == 'lftp-pget-status' or extension == 'part' or extension == 'bts':
+    syncfiles = sickbeard.SYNC_FILES
+    if extension in syncfiles.split(","):
         return True
     else:
         return False
@@ -197,6 +196,7 @@ def sanitizeFileName(name):
     # remove bad chars from the filename
     name = re.sub(r'[\\/\*]', '-', name)
     name = re.sub(r'[:"<>|?]', '', name)
+    name = re.sub(ur'\u2122', '', name) # Trade Mark Sign
 
     # remove leading/trailing periods and spaces
     name = name.strip(' .')
@@ -292,21 +292,22 @@ def searchIndexerForShowID(regShowName, indexer=None, indexer_id=None, ui=None):
                 continue
 
             try:
-                seriesname = search.seriesname
+                seriesname = search[0]['seriesname']
             except:
                 seriesname = None
 
             try:
-                series_id = search.id
+                series_id = search[0]['id']
             except:
                 series_id = None
 
             if not (seriesname and series_id):
                 continue
-
-            if str(name).lower() == str(seriesname).lower and not indexer_id:
+            ShowObj = findCertainShow(sickbeard.showList, int(series_id))
+            #Check if we can find the show in our list (if not, it's not the right show)
+            if (indexer_id is None) and (ShowObj is not None) and (ShowObj.indexerid == int(series_id)):
                 return (seriesname, i, int(series_id))
-            elif int(indexer_id) == int(series_id):
+            elif (indexer_id is not None) and (int(indexer_id) == int(series_id)):
                 return (seriesname, i, int(indexer_id))
 
         if indexer:
@@ -362,7 +363,7 @@ def copyFile(srcFile, destFile):
 
 def moveFile(srcFile, destFile):
     try:
-        ek.ek(os.rename, srcFile, destFile)
+        ek.ek(shutil.move, srcFile, destFile)
         fixSetGroupID(destFile)
     except OSError:
         copyFile(srcFile, destFile)
@@ -400,7 +401,7 @@ def symlink(src, dst):
 
 def moveAndSymlinkFile(srcFile, destFile):
     try:
-        ek.ek(os.rename, srcFile, destFile)
+        ek.ek(shutil.move, srcFile, destFile)
         fixSetGroupID(destFile)
         ek.ek(symlink, destFile, srcFile)
     except:
@@ -492,7 +493,7 @@ def rename_ep_file(cur_path, new_path, old_path_length=0):
     # move the file
     try:
         logger.log(u"Renaming file from " + cur_path + " to " + new_path)
-        ek.ek(os.rename, cur_path, new_path)
+        ek.ek(shutil.move, cur_path, new_path)
     except (OSError, IOError), e:
         logger.log(u"Failed renaming " + cur_path + " to " + new_path + ": " + ex(e), logger.ERROR)
         return False
@@ -658,31 +659,35 @@ def get_all_episodes_from_absolute_number(show, absolute_numbers, indexer_id=Non
         if not show and indexer_id:
             show = findCertainShow(sickbeard.showList, indexer_id)
 
-        if show:
-            for absolute_number in absolute_numbers:
-                ep = show.getEpisode(None, None, absolute_number=absolute_number)
-                if ep:
-                    episodes.append(ep.episode)
-                    season = ep.season  # this will always take the last found seson so eps that cross the season border are not handeled well
+        for absolute_number in absolute_numbers if show else []:
+            ep = show.getEpisode(None, None, absolute_number=absolute_number)
+            if ep:
+                episodes.append(ep.episode)
+                season = ep.season  # this will always take the last found seson so eps that cross the season border are not handeled well
 
     return (season, episodes)
 
 
-def sanitizeSceneName(name, ezrss=False):
+def sanitizeSceneName(name, ezrss=False, anime=False):
     """
     Takes a show name and returns the "scenified" version of it.
 
     ezrss: If true the scenified version will follow EZRSS's cracksmoker rules as best as possible
+    
+    anime: Some show have a ' in their name(Kuroko's Basketball) and is needed for search.
 
     Returns: A string containing the scene version of the show name given.
     """
 
     if name:
-        if not ezrss:
-            bad_chars = u",:()'!?\u2019"
+        # anime: removed ' for Kuroko's Basketball
+        if anime:
+            bad_chars = u",:()!?\u2019"
         # ezrss leaves : and ! in their show names as far as I can tell
-        else:
+        elif ezrss:
             bad_chars = u",()'?\u2019"
+        else:
+            bad_chars = u",:()'!?\u2019"
 
         # strip out any bad chars
         for x in bad_chars:
@@ -731,79 +736,6 @@ def create_https_certificates(ssl_cert, ssl_key):
         return False
 
     return True
-
-
-if __name__ == '__main__':
-    import doctest
-
-    doctest.testmod()
-
-
-def parse_json(data):
-    """
-    Parse json data into a python object
-
-    data: data string containing json
-
-    Returns: parsed data as json or None
-    """
-
-    try:
-        parsedJSON = json.loads(data)
-    except ValueError, e:
-        logger.log(u"Error trying to decode json data. Error: " + ex(e), logger.DEBUG)
-        return None
-
-    return parsedJSON
-
-
-def parse_xml(data, del_xmlns=False):
-    """
-    Parse data into an xml elementtree.ElementTree
-
-    data: data string containing xml
-    del_xmlns: if True, removes xmlns namesspace from data before parsing
-
-    Returns: parsed data as elementtree or None
-    """
-
-    if del_xmlns:
-        data = re.sub(' xmlns="[^"]+"', '', data)
-
-    try:
-        parsedXML = etree.fromstring(data)
-    except Exception, e:
-        logger.log(u"Error trying to parse xml data. Error: " + ex(e), logger.DEBUG)
-        parsedXML = None
-
-    return parsedXML
-
-
-def get_xml_text(element, mini_dom=False):
-    """
-    Get all text inside a xml element
-
-    element: A xml element either created with elementtree.ElementTree or xml.dom.minidom
-    mini_dom: Default False use elementtree, True use minidom
-
-    Returns: text
-    """
-
-    text = ""
-
-    if mini_dom:
-        node = element
-        for child in node.childNodes:
-            if child.nodeType in (Node.CDATA_SECTION_NODE, Node.TEXT_NODE):
-                text += child.data
-    else:
-        if element is not None:
-            for child in [element] + element.findall('.//*'):
-                if child.text:
-                    text += child.text
-
-    return text.strip()
-
 
 def backupVersionedFile(old_file, version):
     numTries = 0
@@ -903,42 +835,8 @@ def md5_for_file(filename, block_size=2 ** 16):
 
 
 def get_lan_ip():
-    """
-    Simple function to get LAN localhost_ip
-    http://stackoverflow.com/questions/11735821/python-get-localhost-ip
-    """
-
-    if os.name != "nt":
-        import fcntl
-        import struct
-
-        def get_interface_ip(ifname):
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            return socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, struct.pack('256s',
-                                                                                ifname[:15]))[20:24])
-
-    ip = socket.gethostbyname(socket.gethostname())
-    if ip.startswith("127.") and os.name != "nt":
-        interfaces = [
-            "eth0",
-            "eth1",
-            "eth2",
-            "wlan0",
-            "wlan1",
-            "wifi0",
-            "ath0",
-            "ath1",
-            "ppp0",
-        ]
-        for ifname in interfaces:
-            try:
-                ip = get_interface_ip(ifname)
-                print ifname, ip
-                break
-            except IOError:
-                pass
-    return ip
-
+    try:return [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][0]
+    except:return socket.gethostname()
 
 def check_url(url):
     """
@@ -1019,12 +917,15 @@ def _check_against_names(nameInQuestion, show, season=-1):
     return False
 
 
-def get_show(name, tryIndexers=False):
+def get_show(name, tryIndexers=False, trySceneExceptions=False):
     if not sickbeard.showList:
         return
 
     showObj = None
     fromCache = False
+
+    if not name:
+        return showObj
 
     try:
         # check cache for show
@@ -1032,11 +933,18 @@ def get_show(name, tryIndexers=False):
         if cache:
             fromCache = True
             showObj = findCertainShow(sickbeard.showList, int(cache))
-
+        
+        #try indexers    
         if not showObj and tryIndexers:
             showObj = findCertainShow(sickbeard.showList,
                                       searchIndexerForShowID(full_sanitizeSceneName(name), ui=classes.ShowListUI)[2])
-
+        
+        #try scene exceptions
+        if not showObj and trySceneExceptions:
+            ShowID = sickbeard.scene_exceptions.get_scene_exception_by_name(name)[0]
+            if ShowID:
+                showObj = findCertainShow(sickbeard.showList, int(ShowID))
+                
         # add show to cache
         if showObj and not fromCache:
             sickbeard.name_cache.addNameToCache(name, showObj.indexerid)
@@ -1052,8 +960,21 @@ def is_hidden_folder(folder):
     On Linux based systems hidden folders start with . (dot)
     folder: Full path of folder to check
     """
+    def is_hidden(filepath):
+        name = os.path.basename(os.path.abspath(filepath))
+        return name.startswith('.') or has_hidden_attribute(filepath)
+
+    def has_hidden_attribute(filepath):
+        try:
+            attrs = ctypes.windll.kernel32.GetFileAttributesW(unicode(filepath))
+            assert attrs != -1
+            result = bool(attrs & 2)
+        except (AttributeError, AssertionError):
+            result = False
+        return result
+    
     if ek.ek(os.path.isdir, folder):
-        if ek.ek(os.path.basename, folder).startswith('.'):
+        if is_hidden(folder):
             return True
 
     return False
@@ -1095,16 +1016,20 @@ def set_up_anidb_connection():
 
     if not sickbeard.ADBA_CONNECTION:
         anidb_logger = lambda x: logger.log("ANIDB: " + str(x), logger.DEBUG)
-        sickbeard.ADBA_CONNECTION = adba.Connection(keepAlive=True, log=anidb_logger)
-
-    if not sickbeard.ADBA_CONNECTION.authed():
         try:
-            sickbeard.ADBA_CONNECTION.auth(sickbeard.ANIDB_USERNAME, sickbeard.ANIDB_PASSWORD)
-        except Exception, e:
-            logger.log(u"exception msg: " + str(e))
+            sickbeard.ADBA_CONNECTION = adba.Connection(keepAlive=True, log=anidb_logger)
+        except Exception as e:
+            logger.log(u"anidb exception msg: " + str(e))
             return False
-    else:
-        return True
+
+    try:
+        if not sickbeard.ADBA_CONNECTION.authed():
+            sickbeard.ADBA_CONNECTION.auth(sickbeard.ANIDB_USERNAME, sickbeard.ANIDB_PASSWORD)
+        else:
+            return True
+    except Exception as e:
+        logger.log(u"anidb exception msg: " + str(e))
+        return False
 
     return sickbeard.ADBA_CONNECTION.authed()
 
@@ -1154,6 +1079,41 @@ def extractZip(archive, targetDir):
         return False
 
 
+def backupConfigZip(fileList, archive, arcname = None):
+    try:
+        a = zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED)
+        for f in fileList:
+            a.write(f, os.path.relpath(f, arcname))
+        a.close()
+        return True
+    except Exception as e:
+        logger.log(u"Zip creation error: " + str(e), logger.ERROR)
+        return False
+
+
+def restoreConfigZip(archive, targetDir):
+    import ntpath
+    try:
+        if not os.path.exists(targetDir):
+            os.mkdir(targetDir)
+        else:
+            def path_leaf(path):
+                head, tail = ntpath.split(path)
+                return tail or ntpath.basename(head)
+            bakFilename = '{0}-{1}'.format(path_leaf(targetDir), datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d_%H%M%S'))
+            shutil.move(targetDir, os.path.join(ntpath.dirname(targetDir), bakFilename))
+
+        zip_file = zipfile.ZipFile(archive, 'r')
+        for member in zip_file.namelist():
+            zip_file.extract(member, targetDir)
+        zip_file.close()
+        return True
+    except Exception as e:
+        logger.log(u"Zip extraction error: " + str(e), logger.ERROR)
+        shutil.rmtree(targetDir)
+        return False
+
+
 def mapIndexersToShow(showObj):
     mapped = {}
 
@@ -1187,7 +1147,7 @@ def mapIndexersToShow(showObj):
 
             try:
                 mapped_show = t[showObj.name]
-            except sickbeard.indexer_shownotfound:
+            except Exception:
                 logger.log(u"Unable to map " + sickbeard.indexerApi(showObj.indexer).name + "->" + sickbeard.indexerApi(
                     indexer).name + " for show: " + showObj.name + ", skipping it", logger.DEBUG)
                 continue
@@ -1217,14 +1177,21 @@ def touchFile(fname, atime=None):
             with file(fname, 'a'):
                 os.utime(fname, (atime, atime))
                 return True
-        except:
-            logger.log(u"File air date stamping not available on your OS", logger.DEBUG)
+        except Exception as e:
+            if e.errno == errno.ENOSYS:
+                logger.log(u"File air date stamping not available on your OS", logger.DEBUG)
+            elif e.errno == errno.EACCES:
+                logger.log(u"File air date stamping failed(Permission denied). Check permissions for file: {0}".format(fname), logger.ERROR)
+            else:
+                logger.log(u"File air date stamping failed. The error is: {0} and the message is: {1}.".format(e.errno, e.strerror), logger.ERROR)
             pass
 
     return False
 
 
 def _getTempDir():
+    import getpass
+
     """Returns the [system temp dir]/tvdb_api-u501 (or
     tvdb_api-myuser)
     """
@@ -1239,7 +1206,7 @@ def _getTempDir():
 
     return os.path.join(tempfile.gettempdir(), "sickrage-%s" % (uid))
 
-def getURL(url, post_data=None, params=None, headers=None, timeout=30, session=None, json=False):
+def getURL(url, post_data=None, params=None, headers={}, timeout=30, session=None, json=False):
     """
     Returns a byte-string retrieved from the url provider.
     """
@@ -1249,10 +1216,8 @@ def getURL(url, post_data=None, params=None, headers=None, timeout=30, session=N
     session = CacheControl(sess=session, cache=caches.FileCache(os.path.join(cache_dir, 'sessions')))
 
     # request session headers
-    req_headers = {'User-Agent': USER_AGENT, 'Accept-Encoding': 'gzip,deflate'}
-    if headers:
-        req_headers.update(headers)
-    session.headers.update(req_headers)
+    session.headers.update({'User-Agent': USER_AGENT, 'Accept-Encoding': 'gzip,deflate'})
+    session.headers.update(headers)
 
     # request session ssl verify
     session.verify = False
@@ -1261,11 +1226,6 @@ def getURL(url, post_data=None, params=None, headers=None, timeout=30, session=N
     session.params = params
 
     try:
-        # Remove double-slashes from url
-        parsed = list(urlparse.urlparse(url))
-        parsed[2] = re.sub("/{2,}", "/", parsed[2])  # replace two or more / with one
-        url = urlparse.urlunparse(parsed)
-
         # request session proxies
         if sickbeard.PROXY_SETTING:
             logger.log("Using proxy for url: " + url, logger.DEBUG)
@@ -1298,10 +1258,7 @@ def getURL(url, post_data=None, params=None, headers=None, timeout=30, session=N
         logger.log(u"Unknown exception while loading URL " + url + ": " + traceback.format_exc(), logger.WARNING)
         return
 
-    if json:
-        return resp.json()
-
-    return resp.content
+    return resp.content if not json else resp.json()
 
 def download_file(url, filename, session=None):
     # create session
@@ -1396,32 +1353,6 @@ def clearCache(force=False):
                                            logger.WARNING)
                                 break
 
-def human(size):
-    """
-    format a size in bytes into a 'human' file size, e.g. bytes, KB, MB, GB, TB, PB
-    Note that bytes/KB will be reported in whole numbers but MB and above will have greater precision
-    e.g. 1 byte, 43 bytes, 443 KB, 4.3 MB, 4.43 GB, etc
-    """
-    if size == 1:
-        # because I really hate unnecessary plurals
-        return "1 byte"
-
-    suffixes_table = [('bytes', 0), ('KB', 0), ('MB', 1), ('GB', 2),('TB', 2), ('PB', 2)]
-
-    num = float(size)
-    for suffix, precision in suffixes_table:
-        if num < 1024.0:
-            break
-        num /= 1024.0
-
-    if precision == 0:
-        formatted_size = "%d" % num
-    else:
-        formatted_size = str(round(num, ndigits=precision))
-
-    return "%s %s" % (formatted_size, suffix)
-
-
 def get_size(start_path='.'):
 
     total_size = 0
@@ -1431,3 +1362,55 @@ def get_size(start_path='.'):
             total_size += ek.ek(os.path.getsize, fp)
     return total_size
 
+def generateApiKey():
+    """ Return a new randomized API_KEY
+    """
+
+    try:
+        from hashlib import md5
+    except ImportError:
+        from md5 import md5
+
+    # Create some values to seed md5
+    t = str(time.time())
+    r = str(random.random())
+
+    # Create the md5 instance and give it the current time
+    m = md5(t)
+
+    # Update the md5 instance with the random variable
+    m.update(r)
+
+    # Return a hex digest of the md5, eg 49f68a5c8493ec2c0bf489821c21fc3b
+    logger.log(u"New API generated")
+    return m.hexdigest()
+
+def pretty_filesize(file_bytes):
+    file_bytes = float(file_bytes)
+    if file_bytes >= 1099511627776:
+        terabytes = file_bytes / 1099511627776
+        size = '%.2f TB' % terabytes
+    elif file_bytes >= 1073741824:
+        gigabytes = file_bytes / 1073741824
+        size = '%.2f GB' % gigabytes
+    elif file_bytes >= 1048576:
+        megabytes = file_bytes / 1048576
+        size = '%.2f MB' % megabytes
+    elif file_bytes >= 1024:
+        kilobytes = file_bytes / 1024
+        size = '%.2f KB' % kilobytes
+    else:
+        size = '%.2f b' % file_bytes
+
+    return size
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
+def remove_article(text=''):
+    return re.sub(r'(?i)^(?:(?:A(?!\s+to)n?)|The)\s(\w)', r'\1', text)
+
+def generateCookieSecret():
+
+    return base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)

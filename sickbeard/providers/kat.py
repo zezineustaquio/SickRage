@@ -19,16 +19,15 @@
 
 from __future__ import with_statement
 
-import sys
 import os
 import traceback
 import urllib
 import re
 import datetime
-import urlparse
 
 import sickbeard
 import generic
+
 from sickbeard.common import Quality
 from sickbeard.name_parser.parser import NameParser, InvalidNameException, InvalidShowException
 from sickbeard import logger
@@ -37,12 +36,7 @@ from sickbeard import helpers
 from sickbeard import db
 from sickbeard import classes
 from sickbeard.show_name_helpers import allPossibleShowNames, sanitizeSceneName
-from sickbeard.exceptions import ex
-from sickbeard import encodingKludge as ek
-from sickbeard import clients
 from sickbeard.bs4_parser import BS4Parser
-from lib import requests
-from lib.requests import exceptions
 from lib.unidecode import unidecode
 
 
@@ -61,8 +55,9 @@ class KATProvider(generic.TorrentProvider):
 
         self.cache = KATCache(self)
 
-        self.urls = ['http://kickass.to/', 'http://katproxy.com/', 'http://www.kickmirror.com/']
-        self.url = 'https://kickass.to/'
+        self.urls = {'base_url': 'https://kickass.to/'}
+
+        self.url = self.urls['base_url']
 
     def isEnabled(self):
         return self.enabled
@@ -226,69 +221,65 @@ class KATProvider(generic.TorrentProvider):
 
         for mode in search_params.keys():
             for search_string in search_params[mode]:
+                if isinstance(search_string, unicode):
+                    search_string = unidecode(search_string)
 
-                for url in self.urls:
-                    if mode != 'RSS':
-                        searchURL = url + 'usearch/%s/?field=seeders&sorder=desc' % (urllib.quote(unidecode(search_string)))
-                        logger.log(u"Search string: " + searchURL, logger.DEBUG)
-                    else:
-                        searchURL = url + 'tv/?field=time_add&sorder=desc'
-                        logger.log(u"KAT cache update URL: " + searchURL, logger.DEBUG)
+                if mode != 'RSS':
+                    searchURL = self.url + 'usearch/%s/?field=seeders&sorder=desc&rss=1' % urllib.quote_plus(search_string)
+                else:
+                    searchURL = self.url + 'tv/?field=time_add&sorder=desc&rss=1'
 
-                    html = self.getURL(searchURL)
-                    if html:
-                        self.url = url
-                        break
-
-                if not html:
-                    continue
+                logger.log(u"Search string: " + searchURL, logger.DEBUG)
 
                 try:
-                    with BS4Parser(html, features=["html5lib", "permissive"]) as soup:
-                        torrent_table = soup.find('table', attrs={'class': 'data'})
-                        torrent_rows = torrent_table.find_all('tr') if torrent_table else []
-
-                        #Continue only if one Release is found
-                        if len(torrent_rows) < 2:
-                            logger.log(u"The data returned from " + self.name + " does not contain any torrents",
-                                       logger.WARNING)
+                    entries = self.cache.getRSSFeed(searchURL)['entries']
+                    for item in entries or []:
+                        try:
+                            link = item['link']
+                            id = item['guid']
+                            title = item['title']
+                            url = item['torrent_magneturi']
+                            verified = bool(int(item['torrent_verified']) or 0)
+                            seeders = int(item['torrent_seeds'])
+                            leechers = int(item['torrent_peers'])
+                            size = int(item['torrent_contentlength'])
+                        except (AttributeError, TypeError):
                             continue
 
-                        for tr in torrent_rows[1:]:
+                        if mode != 'RSS' and (seeders < self.minseed or leechers < self.minleech):
+                            continue
+
+                        if self.confirmed and not verified:
+                            logger.log(
+                                u"KAT Provider found result " + title + " but that doesn't seem like a verified result so I'm ignoring it",
+                                logger.DEBUG)
+                            continue
+
+                        #Check number video files = episode in season and find the real Quality for full season torrent analyzing files in torrent
+                        if mode == 'Season' and search_mode == 'sponly':
+                            ep_number = int(epcount / len(set(allPossibleShowNames(self.show))))
+                            title = self._find_season_quality(title, link, ep_number)
+
+                        if not title or not url:
+                            continue
+
+                        try:
+                            pubdate = datetime.datetime(*item['published_parsed'][0:6])
+                        except AttributeError:
                             try:
-                                link = urlparse.urljoin(self.url,
-                                                        (tr.find('div', {'class': 'torrentname'}).find_all('a')[1])['href'])
-                                id = tr.get('id')[-7:]
-                                title = (tr.find('div', {'class': 'torrentname'}).find_all('a')[1]).text \
-                                        or (tr.find('div', {'class': 'torrentname'}).find_all('a')[2]).text
-                                url = tr.find('a', 'imagnet')['href']
-                                verified = True if tr.find('a', 'iverify') else False
-                                trusted = True if tr.find('img', {'alt': 'verified'}) else False
-                                seeders = int(tr.find_all('td')[-2].text)
-                                leechers = int(tr.find_all('td')[-1].text)
-                            except (AttributeError, TypeError):
-                                continue
+                                pubdate = datetime.datetime(*item['updated_parsed'][0:6])
+                            except AttributeError:
+                                try:
+                                    pubdate = datetime.datetime(*item['created_parsed'][0:6])
+                                except AttributeError:
+                                    try:
+                                        pubdate = datetime.datetime(*item['date'][0:6])
+                                    except AttributeError:
+                                        pubdate = datetime.datetime.today()
 
-                            if mode != 'RSS' and (seeders < self.minseed or leechers < self.minleech):
-                                continue
+                        item = title, url, id, seeders, leechers, size, pubdate
 
-                            if self.confirmed and not verified:
-                                logger.log(
-                                    u"KAT Provider found result " + title + " but that doesn't seem like a verified result so I'm ignoring it",
-                                    logger.DEBUG)
-                                continue
-
-                            #Check number video files = episode in season and find the real Quality for full season torrent analyzing files in torrent
-                            if mode == 'Season' and search_mode == 'sponly':
-                                ep_number = int(epcount / len(set(allPossibleShowNames(self.show))))
-                                title = self._find_season_quality(title, link, ep_number)
-
-                            if not title or not url:
-                                continue
-
-                            item = title, url, id, seeders, leechers
-
-                            items[mode].append(item)
+                        items[mode].append(item)
 
                 except Exception, e:
                     logger.log(u"Failed to parsing " + self.name + " Traceback: " + traceback.format_exc(),
@@ -303,7 +294,7 @@ class KATProvider(generic.TorrentProvider):
 
     def _get_title_and_url(self, item):
 
-        title, url, id, seeders, leechers = item
+        title, url, id, seeders, leechers, size, pubdate = item
 
         if title:
             title = u'' + title
@@ -339,7 +330,9 @@ class KATProvider(generic.TorrentProvider):
 
                 for item in self._doSearch(searchString[0]):
                     title, url = self._get_title_and_url(item)
-                    results.append(classes.Proper(title, url, datetime.datetime.today(), self.show))
+                    pubdate = item[6]
+
+                    results.append(classes.Proper(title, url, pubdate, self.show))
 
         return results
 
@@ -352,12 +345,11 @@ class KATCache(tvcache.TVCache):
 
         tvcache.TVCache.__init__(self, provider)
 
-        # only poll ThePirateBay every 10 minutes max
+        # only poll KickAss every 10 minutes max
         self.minTime = 20
 
     def _getRSSData(self):
         search_params = {'RSS': ['rss']}
-        return self.provider._doSearch(search_params)
-
+        return {'entries': self.provider._doSearch(search_params)}
 
 provider = KATProvider()

@@ -21,19 +21,20 @@ from __future__ import with_statement
 import time
 import datetime
 import itertools
+import traceback
 
 import sickbeard
 
 from sickbeard import db
 from sickbeard import logger
 from sickbeard.common import Quality
-from sickbeard import helpers, show_name_helpers
-from sickbeard.exceptions import MultipleShowObjectsException
+from sickbeard import helpers
+from sickbeard.exceptions import ex
 from sickbeard.exceptions import AuthException
 from sickbeard.rssfeeds import RSSFeeds
-from sickbeard import clients
 from name_parser.parser import NameParser, InvalidNameException, InvalidShowException
-from sickbeard.encodingKludge import toUnicode
+from sickbeard import encodingKludge as ek
+
 
 class CacheDBConnection(db.DBConnection):
     def __init__(self, providerName):
@@ -45,8 +46,7 @@ class CacheDBConnection(db.DBConnection):
                 self.action(
                     "CREATE TABLE [" + providerName + "] (name TEXT, season NUMERIC, episodes TEXT, indexerid NUMERIC, url TEXT, time NUMERIC, quality TEXT, release_group TEXT)")
             else:
-                sqlResults = self.select(
-                    "SELECT url, COUNT(url) as count FROM [" + providerName + "] GROUP BY url HAVING count > 1")
+                sqlResults = self.select("SELECT url, COUNT(url) AS count FROM [" + providerName + "] GROUP BY url HAVING count > 1")
 
                 for cur_dupe in sqlResults:
                     self.action("DELETE FROM [" + providerName + "] WHERE url = ?", [cur_dupe["url"]])
@@ -74,9 +74,9 @@ class CacheDBConnection(db.DBConnection):
             if str(e) != "table lastUpdate already exists":
                 raise
 
+
 class TVCache():
     def __init__(self, provider):
-
         self.provider = provider
         self.providerID = self.provider.getID()
         self.providerDB = None
@@ -95,48 +95,51 @@ class TVCache():
             myDB.action("DELETE FROM [" + self.providerID + "] WHERE 1")
 
     def _get_title_and_url(self, item):
-        # override this in the provider if daily search has a different data layout to backlog searches
         return self.provider._get_title_and_url(item)
 
     def _getRSSData(self):
-        data = None
-        return data
+        return None
 
-    def _checkAuth(self):
-        return self.provider._checkAuth()
+    def _checkAuth(self, data):
+        return True
 
     def _checkItemAuth(self, title, url):
         return True
 
     def updateCache(self):
-        if self.shouldUpdate() and self._checkAuth():
-            # as long as the http request worked we count this as an update
+        # check if we should update
+        if not self.shouldUpdate():
+            return
+
+        try:
             data = self._getRSSData()
-            if not data:
-                return []
+            if self._checkAuth(data):
+                # clear cache
+                self._clearCache()
 
-            # clear cache
-            self._clearCache()
+                # set updated
+                self.setLastUpdate()
 
-            # set updated
-            self.setLastUpdate()
+                cl = []
+                for item in data['entries'] or []:
+                    ci = self._parseItem(item)
+                    if ci is not None:
+                        cl.append(ci)
 
-            # parse data
-            cl = []
-            for item in data:
-                title, url = self._get_title_and_url(item)
-                ci = self._parseItem(title, url)
-                if ci is not None:
-                    cl.append(ci)
+                if len(cl) > 0:
+                    myDB = self._getDB()
+                    myDB.mass_action(cl)
 
-            if len(cl) > 0:
-                myDB = self._getDB()
-                myDB.mass_action(cl)
+        except AuthException, e:
+            logger.log(u"Authentication error: " + ex(e), logger.ERROR)
+        except Exception, e:
+            logger.log(u"Error while searching " + self.provider.name + ", skipping: " + ex(e), logger.ERROR)
+            logger.log(traceback.format_exc(), logger.DEBUG)
 
-        return []
-
-    def getRSSFeed(self, url, post_data=None, request_headers=None):
-        return RSSFeeds(self.providerID).getFeed(url, post_data, request_headers)
+    def getRSSFeed(self, url, post_data=None, items=[]):
+        if self.provider.proxy.isEnabled():
+            self.provider.headers.update({'Referer': self.provider.proxy.getProxyURL()})
+        return RSSFeeds(self.providerID).getFeed(self.provider.proxy._buildURL(url), post_data, self.provider.headers, items)
 
     def _translateTitle(self, title):
         return u'' + title.replace(' ', '.')
@@ -144,7 +147,8 @@ class TVCache():
     def _translateLinkURL(self, url):
         return url.replace('&amp;', '&')
 
-    def _parseItem(self, title, url):
+    def _parseItem(self, item):
+        title, url = self._get_title_and_url(item)
 
         self._checkItemAuth(title, url)
 
@@ -159,8 +163,6 @@ class TVCache():
             logger.log(
                 u"The data returned from the " + self.provider.name + " feed is incomplete, this result is unusable",
                 logger.DEBUG)
-            return None
-
 
     def _getLastUpdate(self):
         myDB = self._getDB()
@@ -232,7 +234,7 @@ class TVCache():
         if not parse_result:
 
             # create showObj from indexer_id if available
-            showObj=None
+            showObj = None
             if indexer_id:
                 showObj = helpers.findCertainShow(sickbeard.showList, indexer_id)
 
@@ -263,7 +265,7 @@ class TVCache():
             # get quality of release
             quality = parse_result.quality
 
-            name = toUnicode(name)
+            name = ek.ss(name)
 
             # get release group
             release_group = parse_result.release_group
@@ -280,10 +282,7 @@ class TVCache():
 
     def searchCache(self, episode, manualSearch=False):
         neededEps = self.findNeededEpisodes(episode, manualSearch)
-        if len(neededEps) > 0:
-            return neededEps[episode]
-        else:
-            return []
+        return neededEps[episode] if len(neededEps) > 0 else []
 
     def listPropers(self, date=None, delimiter="."):
         myDB = self._getDB()
@@ -307,8 +306,8 @@ class TVCache():
         else:
             for epObj in episode:
                 cl.append([
-                    "SELECT * FROM [" + self.providerID + "] WHERE indexerid = ? AND season = ? AND episodes LIKE ? "
-                    "AND quality IN (" + ",".join([str(x) for x in epObj.wantedQuality]) + ")",
+                    "SELECT * FROM [" + self.providerID + "] WHERE indexerid = ? AND season = ? AND episodes LIKE ? AND quality IN (" + ",".join(
+                        [str(x) for x in epObj.wantedQuality]) + ")",
                     [epObj.show.indexerid, epObj.season, "%|" + str(epObj.episode) + "|%"]])
 
             sqlResults = myDB.mass_action(cl, fetchall=True)
@@ -316,11 +315,6 @@ class TVCache():
 
         # for each cache entry
         for curResult in sqlResults:
-
-            # skip non-tv crap
-            if not show_name_helpers.filterBadReleases(curResult["name"], parse=False):
-                continue
-
             # get the show object, or if it's not one of our shows then ignore it
             showObj = helpers.findCertainShow(sickbeard.showList, int(curResult["indexerid"]))
             if not showObj:

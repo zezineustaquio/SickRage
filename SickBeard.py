@@ -20,12 +20,19 @@
 # Check needed software dependencies to nudge users to fix their setup
 from __future__ import with_statement
 
+import codecs
+codecs.register(lambda name: codecs.lookup('utf-8') if name == 'cp65001' else None)
+
 import time
 import signal
 import sys
-import shutil
 import subprocess
 import traceback
+
+import shutil
+import lib.shutil_custom
+
+shutil.copyfile = lib.shutil_custom.copyfile_custom
 
 if sys.version_info < (2, 6):
     print "Sorry, requires Python 2.6 or 2.7."
@@ -33,7 +40,6 @@ if sys.version_info < (2, 6):
 
 try:
     import Cheetah
-
     if Cheetah.Version[0] != '2':
         raise ValueError
 except ValueError:
@@ -45,11 +51,15 @@ except:
 
 import os
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'lib')))
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), 'lib')))
 
 # We only need this for compiling an EXE and I will just always do that on 2.6+
 if sys.hexversion >= 0x020600F0:
     from multiprocessing import freeze_support  # @UnresolvedImport
+
+if sys.version_info >= (2, 7, 9):
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
 
 import locale
 import datetime
@@ -139,6 +149,10 @@ class SickRage(object):
 
         if not hasattr(sys, "setdefaultencoding"):
             reload(sys)
+  
+        if sys.platform == 'win32':
+            if sys.getwindowsversion()[0] >= 6 and sys.stdout.encoding == 'cp65001':
+                sickbeard.SYS_ENCODING = 'UTF-8'
 
         try:
             # pylint: disable=E1101
@@ -256,35 +270,24 @@ class SickRage(object):
                 raise SystemExit(
                     "Config file root dir '" + os.path.dirname(sickbeard.CONFIG_FILE) + "' must be writeable.")
 
-        # Check if we need to perform a restore first
-        restoreDir = os.path.join(sickbeard.DATA_DIR, 'restore')
-        if os.path.exists(restoreDir):
-            if self.restore(restoreDir, sickbeard.DATA_DIR):
-                logger.log(u"Restore successful...")
-            else:
-                logger.log(u"Restore FAILED!", logger.ERROR)
-
         os.chdir(sickbeard.DATA_DIR)
 
+        # Check if we need to perform a restore first
+        try:
+            restoreDir = os.path.join(sickbeard.DATA_DIR, 'restore')
+            if self.consoleLogging and os.path.exists(restoreDir):
+                if self.restoreDB(restoreDir, sickbeard.DATA_DIR):
+                    sys.stdout.write("Restore: restoring DB and config.ini successful...\n")
+                else:
+                    sys.stdout.write("Restore: restoring DB and config.ini FAILED!\n")
+        except Exception as e:
+            sys.stdout.write("Restore: restoring DB and config.ini FAILED!\n")
+
         # Load the config and publish it to the sickbeard package
-        if not os.path.isfile(sickbeard.CONFIG_FILE):
-            logger.log(u"Unable to find '" + sickbeard.CONFIG_FILE + "' , all settings will be default!", logger.ERROR)
+        if self.consoleLogging and not os.path.isfile(sickbeard.CONFIG_FILE):
+            sys.stdout.write("Unable to find '" + sickbeard.CONFIG_FILE + "' , all settings will be default!" + "\n")
 
         sickbeard.CFG = ConfigObj(sickbeard.CONFIG_FILE)
-
-        CUR_DB_VERSION = db.DBConnection().checkDBVersion()
-
-        if CUR_DB_VERSION > 0:
-            if CUR_DB_VERSION < MIN_DB_VERSION:
-                raise SystemExit("Your database version (" + str(
-                    CUR_DB_VERSION) + ") is too old to migrate from with this version of SickRage (" + str(
-                    MIN_DB_VERSION) + ").\n" + \
-                                 "Upgrade using a previous version of SB first, or start with no database file to begin fresh.")
-            if CUR_DB_VERSION > MAX_DB_VERSION:
-                raise SystemExit("Your database version (" + str(
-                    CUR_DB_VERSION) + ") has been incremented past what this version of SickRage supports (" + str(
-                    MAX_DB_VERSION) + ").\n" + \
-                                 "If you have used other forks of SB, your database may be unusable due to their modifications.")
 
         # Initialize the config and our threads
         sickbeard.initialize(consoleLogging=self.consoleLogging)
@@ -343,7 +346,7 @@ class SickRage(object):
                        logger.ERROR)
             if sickbeard.LAUNCH_BROWSER and not self.runAsDaemon:
                 logger.log(u"Launching browser and exiting", logger.ERROR)
-                sickbeard.launchBrowser(self.startPort)
+                sickbeard.launchBrowser('https' if sickbeard.ENABLE_HTTPS else 'http', self.startPort, sickbeard.WEB_ROOT)
             os._exit(1)
 
         if self.consoleLogging:
@@ -368,7 +371,7 @@ class SickRage(object):
 
         # Launch browser
         if sickbeard.LAUNCH_BROWSER and not (self.noLaunch or self.runAsDaemon):
-            sickbeard.launchBrowser(self.startPort)
+            sickbeard.launchBrowser('https' if sickbeard.ENABLE_HTTPS else 'http', self.startPort, sickbeard.WEB_ROOT)
 
         # main loop
         while (True):
@@ -458,16 +461,17 @@ class SickRage(object):
                     logger.ERROR)
                 logger.log(traceback.format_exc(), logger.DEBUG)
 
-    def restore(self, srcDir, dstDir):
+    def restoreDB(self, srcDir, dstDir):
         try:
-            for file in os.listdir(srcDir):
-                srcFile = os.path.join(srcDir, file)
-                dstFile = os.path.join(dstDir, file)
-                bakFile = os.path.join(dstDir, file + '.bak')
-                shutil.move(dstFile, bakFile)
-                shutil.move(srcFile, dstFile)
+            filesList = ['sickbeard.db', 'config.ini', 'failed.db', 'cache.db']
 
-            os.rmdir(srcDir)
+            for filename in filesList:
+                srcFile = os.path.join(srcDir, filename)
+                dstFile = os.path.join(dstDir, filename)
+                bakFile = os.path.join(dstDir, '{0}.bak-{1}'.format(filename, datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d_%H%M%S')))
+                if os.path.isfile(dstFile):
+                    shutil.move(dstFile, bakFile)
+                shutil.move(srcFile, dstFile)
             return True
         except:
             return False
@@ -517,7 +521,6 @@ class SickRage(object):
                     if '--nolaunch' not in popen_list:
                         popen_list += ['--nolaunch']
                     logger.log(u"Restarting SickRage with " + str(popen_list))
-                    logger.close()
                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
         # system exit
