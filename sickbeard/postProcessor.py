@@ -53,7 +53,7 @@ class PostProcessor(object):
 
     EXISTS_LARGER = 1
     EXISTS_SAME = 2
-    EXISTS_SMALLER = 3
+    EXISTS_SMALLER = 3 
     DOESNT_EXIST = 4
 
     IGNORED_FILESTRINGS = ["/.AppleDouble/", ".DS_Store"]
