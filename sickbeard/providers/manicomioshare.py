@@ -161,7 +161,7 @@ class ManicomioShareProvider(generic.TorrentProvider):
         elif self.show.anime:
             for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
                 ep_string = sanitizeSceneName(show_name) + ' ' + \
-                            "%i" % int(ep_obj.absolute_number)
+                            "%i" % int(ep_obj.absolute_number) 
                 search_string['Episode'].append(ep_string)
         else:
             for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
