@@ -171,7 +171,7 @@ class KATProvider(generic.TorrentProvider):
                 ep_string = show_name + ' Season ' + str(ep_obj.airdate).split('-')[0]
                 search_string['Season'].append(ep_string)
             elif ep_obj.show.anime:
-                ep_string = show_name + ' ' + "%02d" % ep_obj.scene_absolute_number
+                ep_string = show_name + ' ' + "%02d" % ep_obj.absolute_number
                 search_string['Season'].append(ep_string)
             else:
                 ep_string = show_name + ' S%02d' % int(ep_obj.scene_season) + ' -S%02d' % int(
